@@ -15,15 +15,23 @@ Este projeto é uma ferramenta de automação e teste para o jogo HayDay em disp
 2. **ScreenVision**
    - **screenshotMain.py**: Captura screenshots do dispositivo Android
    - **templateMatcher.py**: Utiliza OpenCV para encontrar templates (imagens de referência) na tela
+   - **maskedTemplateMatcher.py**: Versão avançada do template matcher que suporta máscaras
    - **screenshotCFG.json**: Configuração centralizada para os parâmetros de captura e debug
 
 3. **Execution**
-   - **test.py**: Implementa testes práticos, como buscar templates específicos em screenshots
+   - **template.py**: Implementa testes práticos, como buscar templates específicos em screenshots
+   - **testnew.py**: Implementa teste com máscaras para reconhecimento avançado de templates
 
-4. **Interface Gráfica (main.py)**
+4. **StateManager**
+   - **stateManager.py**: Gerencia os estados do jogo baseado na detecção das imagens de referência
+   - Utiliza a thread de captura existente para analisar os estados em tempo real
+   - Sistema de callbacks para notificar mudanças de estado
+
+5. **Interface Gráfica (main.py)**
    - Interface Tkinter para interação do usuário
    - Gerencia uma thread contínua de captura de screenshots 
    - Fornece funcionalidades para testar reconhecimento de templates
+   - Exibe o estado atual do jogo detectado pelo StateManager
 
 ## Funcionalidades Principais
 
@@ -36,11 +44,19 @@ Este projeto é uma ferramenta de automação e teste para o jogo HayDay em disp
 - Busca imagens de referência (templates) dentro dos screenshots capturados
 - Suporta regiões de interesse (ROI) para limitar a busca a áreas específicas
 - Retorna posição e nível de confiança quando um template é encontrado
+- Suporte para templates com máscaras para reconhecimento avançado
+
+### Gerenciamento de Estados
+- Detecção automática do estado atual do jogo baseado em imagens de referência
+- Monitoramento contínuo em thread separada utilizando os screenshots capturados
+- Sistema de notificação de mudanças de estado via callbacks
+- Suporte para expansão com novos estados e ações específicas para cada estado
 
 ### Interface Gráfica
 - Permite iniciar/parar a captura de screenshots
 - Monitora o status da thread de captura
 - Fornece botões para executar testes de reconhecimento específicos
+- Exibe o estado atual do jogo e o tempo de permanência nesse estado
 
 ### Modo Debug
 - Quando ativado, salva screenshots em um diretório configurável
@@ -77,9 +93,38 @@ Este projeto é uma ferramenta de automação e teste para o jogo HayDay em disp
    - Reestruturado para expor uma API mais flexível com a função find_template()
    - Corrigido o problema de duplicação de logs usando um modo silencioso quando chamado por outros módulos
 
+## Modificações Recentes
+
+### Implementação do StateManager
+1. **Novo Módulo de Gerenciamento de Estados**
+   - Criado o módulo `stateManager` para detectar e monitorar estados do jogo
+   - Implementado enumeração `GameState` para representar diferentes estados do jogo
+   - Integração com o sistema de captura de screenshots existente
+
+2. **Detecção Inteligente de Estados**
+   - Utiliza template matching para identificar estados a partir de imagens de referência
+   - Configuração ajustável de limiares de confiança e intervalos de verificação
+   - Sistema robusto de notificação de mudanças via callbacks
+
+3. **Integração com a Interface Gráfica**
+   - Adicionado painel na interface para exibir o estado atual e tempo de permanência
+   - Notificação visual no log quando ocorrem mudanças de estado
+   - Gerenciamento limpo das threads e recursos ao fechar a aplicação
+
+### Melhorias no Template Matching
+1. **Implementação de Template Matching com Máscaras**
+   - Criado `MaskedTemplateMatcher` para reconhecimento mais preciso com máscaras
+   - Parâmetro `verbose` para controlar nível de detalhamento dos logs
+   - Melhor tratamento de erros e feedback de resultados
+
+2. **Refatoração do `testnew.py`**
+   - Removida a execução direta do script
+   - Implementada função `execute_masked_test()` para uso via interface gráfica
+   - Integração com GUI através de nova opção na interface
+
 ## Próximos Passos Planejados
-1. Implementar mais testes de reconhecimento para diferentes elementos do jogo
-2. Desenvolver sistema de ações que possa interagir com os elementos reconhecidos
-3. Expandir a interface gráfica com mais opções de configuração e controle
-4. Melhorar a documentação de uso da API find_template
-5. Implementar suporte para sequências de reconhecimento de múltiplos templates
+1. Expandir o conjunto de estados detectados com mais imagens de referência
+2. Desenvolver sistema de ações automáticas baseadas no estado atual do jogo
+3. Implementar máquina de estados para criar workflows de automação complexos
+4. Melhorar a performance de detecção de estados com possibilidade de caching
+5. Adicionar mecanismos para salvar e carregar configurações de estados personalizados

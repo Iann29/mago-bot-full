@@ -19,6 +19,7 @@ from screenVision.screenshotMain import Screenshotter, config as screenshot_conf
 from adbutils import AdbDevice
 from execution.template import run_test, find_template # Importa as funções do módulo de template
 from execution.testnew import execute_masked_test # Importa a função do módulo testnew.py
+from stateManager import StateManager, GameState # Importa o gerenciador de estados
 
 # --- Configurações Lidas do JSON ---
 TARGET_FPS = screenshot_config.get("target_fps", 1) # Pega do CFG, default 1
@@ -28,6 +29,7 @@ TARGET_FPS = screenshot_config.get("target_fps", 1) # Pega do CFG, default 1
 screenshot_queue = queue.Queue(maxsize=5) 
 stop_capture_thread = False  # Flag para parar a thread
 capture_thread = None        # A thread de captura que será inicializada
+state_manager = None         # Gerenciador de estados do jogo
 
 # --- Função da Thread de Captura ---
 def capture_worker(fps, adb_device: AdbDevice): 
@@ -146,6 +148,16 @@ class HayDayTestApp:
         
         self.capture_fps_label = ttk.Label(capture_frame, text="FPS: --")
         self.capture_fps_label.pack(side=tk.RIGHT, padx=5)
+        
+        # Frame de estado do jogo
+        state_frame = ttk.LabelFrame(main_frame, text="Estado do Jogo", padding=10)
+        state_frame.pack(fill=tk.X, pady=10)
+        
+        self.state_label = ttk.Label(state_frame, text="Estado atual: Desconhecido")
+        self.state_label.pack(side=tk.LEFT, padx=5)
+        
+        self.state_time_label = ttk.Label(state_frame, text="Tempo no estado: 0s")
+        self.state_time_label.pack(side=tk.RIGHT, padx=5)
         
         # Frame de ações
         actions_frame = ttk.LabelFrame(main_frame, text="Ações", padding=10)
@@ -310,20 +322,55 @@ class HayDayTestApp:
             
     def update_capture_status(self):
         """Atualiza o status da captura na interface a cada segundo"""
-        global capture_thread, screenshot_queue, TARGET_FPS
+        global capture_thread, screenshot_queue, TARGET_FPS, state_manager
         
         try:
+            # Atualiza status da thread de captura
             if capture_thread and capture_thread.is_alive():
                 self.capture_status_label.config(text="Thread de captura: Ativa")
                 self.capture_fps_label.config(text=f"FPS: {TARGET_FPS} (Fila: {screenshot_queue.qsize()})")
             else:
                 self.capture_status_label.config(text="Thread de captura: Inativa")
                 self.capture_fps_label.config(text="FPS: --")
+            
+            # Atualiza informações do estado atual do jogo
+            if state_manager is not None:
+                current_state = state_manager.get_current_state()
+                state_duration = state_manager.get_state_duration()
+                
+                # Atualiza as labels com informações do estado
+                self.state_label.config(text=f"Estado atual: {current_state}")
+                self.state_time_label.config(text=f"Tempo no estado: {state_duration:.1f}s")
         except Exception as e:
-            print(f"Erro ao atualizar status da captura: {e}")
+            print(f"Erro ao atualizar status: {e}")
             
         # Programa a próxima atualização
         self.root.after(1000, self.update_capture_status)
+        
+    def on_state_change(self, previous_state, new_state):
+        """Callback chamado quando o estado do jogo muda"""
+        self.log(f"⚡ Estado alterado: {previous_state} -> {new_state}")
+
+# Função para inicializar o gerenciador de estados
+def initialize_state_manager():
+    """Inicializa o gerenciador de estados e inicia o monitoramento"""
+    global state_manager, screenshot_queue
+    
+    try:
+        # Cria uma instância do StateManager com configurações ajustadas
+        state_manager = StateManager(threshold=0.75, check_interval=0.2, verbose=False)
+        
+        # Inicia o monitoramento de estados usando a fila de screenshots existente
+        if screenshot_queue is not None:
+            state_manager.start_monitoring(screenshot_queue)
+            print("StateManager inicializado e monitoramento iniciado.")
+            return True
+        else:
+            print("❌ Erro: Fila de screenshots não inicializada. StateManager não pode ser inicializado.")
+            return False
+    except Exception as e:
+        print(f"❌ Erro ao inicializar StateManager: {e}")
+        return False
 
 # --- Função Principal ---
 def main():
@@ -358,8 +405,17 @@ def main():
         root = tk.Tk()
         app = HayDayTestApp(root)
         
-        # 5. Configura a atualização do status da captura a cada segundo
+        # 5. Inicializa o gerenciador de estados
+        if initialize_state_manager():
+            # Registra o callback de mudança de estado
+            state_manager.register_state_change_callback(app.on_state_change)
+            print("Registro de callback de estado concluído.")
+        
+        # 6. Configura a atualização do status da captura e do estado a cada segundo
         app.update_capture_status()
+        
+        # Configura o fechamento da janela para usar nossa função on_closing
+        root.protocol("WM_DELETE_WINDOW", lambda: on_closing(root))
         
         # Inicia o loop principal da interface gráfica
         root.mainloop()
@@ -373,6 +429,11 @@ def main():
         print("MAIN: Sinalizando para thread de captura parar...")
         stop_capture_thread = True
         
+        # Para o monitoramento de estados
+        if state_manager is not None:
+            print("MAIN: Parando monitoramento de estados...")
+            state_manager.stop_monitoring()
+        
         if capture_thread and capture_thread.is_alive():
             print("MAIN: Aguardando a thread de captura encerrar...")
             capture_thread.join(timeout=3)  # Aumenta um pouco o timeout
@@ -380,6 +441,25 @@ def main():
                 print("MAIN: Thread de captura não terminou a tempo.")
                 
         print("MAIN: Programa encerrado.")
+
+# Função chamada quando a janela principal é fechada
+def on_closing(root):
+    """Trata o fechamento da janela principal"""
+    global stop_capture_thread, state_manager
+    
+    print("MAIN: Aplicativo está sendo fechado...")
+    
+    # Para a thread de captura
+    stop_capture_thread = True
+    
+    # Para o monitoramento de estados
+    if state_manager is not None:
+        print("MAIN: Parando monitoramento de estados...")
+        state_manager.stop_monitoring()
+    
+    # Destrói a janela e encerra o programa
+    root.destroy()
+    print("MAIN: Interface encerrada.")
 
 # --- Ponto de entrada ---
 if __name__ == "__main__":

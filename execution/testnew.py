@@ -16,7 +16,7 @@ from screenVision.maskedTemplateMatcher import MaskedTemplateMatcher
 from ADBmanager import adb_manager 
 
 # Configurações de debug
-DEBUG_MODE = False  # Sempre ativado para teste
+DEBUG_MODE = True  # Sempre ativado para teste
 DEBUG_OUTPUT_DIR = os.path.join(project_root, 'output_template_matches')
 
 # Garante que o diretório de saída exista
@@ -61,7 +61,7 @@ def run_masked_test():
     search_roi = None # Busca na imagem inteira para começar
 
     # Threshold de confiança - TM_CCORR_NORMED geralmente precisa de valores altos
-    confidence_threshold = 0.95 # Comece com um valor alto e ajuste se necessário
+    confidence_threshold = 0.93 # Comece com um valor alto e ajuste se necessário
 
     # --- 1. Garante Conexão ADB ---
     if not adb_manager.is_connected():
