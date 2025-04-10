@@ -29,3 +29,11 @@ screenshots/
 # OS specific files
 .DS_Store
 Thumbs.db
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Arquivos com informações sensíveis
+auth/password_hashes.py

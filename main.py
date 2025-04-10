@@ -13,6 +13,9 @@ project_root = os.path.dirname(os.path.abspath(__file__))
 if project_root not in sys.path:
     sys.path.append(project_root)
 
+# Importações do sistema de autenticação
+from auth.login_ui import start_login_window
+
 # Importações dos módulos do projeto
 from ADBmanager import adb_manager # Importa o SINGLETON adb_manager
 from screenVision.screenshotMain import Screenshotter, config as screenshot_config 
@@ -103,7 +106,7 @@ def capture_worker(fps, adb_device: AdbDevice):
 
 # --- Classe da Interface Gráfica ---
 class HayDayTestApp:
-    def __init__(self, root):
+    def __init__(self, root, user_data=None):
         self.root = root
         self.root.title("HayDay Test Tool")
         self.root.geometry("600x500")
@@ -112,6 +115,10 @@ class HayDayTestApp:
         # Variáveis de controle
         self.adb_manager_instance = None
         self.connected_device = None
+        
+        # Dados do usuário autenticado
+        self.user_data = user_data
+        self.html_id = user_data.get("html_id") if user_data else None
         
         # Configurar a interface
         self.setup_ui()
@@ -125,8 +132,14 @@ class HayDayTestApp:
         main_frame = ttk.Frame(self.root, padding=10)
         main_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Título
-        title_label = ttk.Label(main_frame, text="HayDay Test Tool", font=("Helvetica", 16, "bold"))
+        # Título com informação do usuário
+        title_text = "HayDay Test Tool"
+        if self.html_id:
+            # Extrai nome do usuário do html_id (exemplo: "screen-ian" -> "Ian")
+            user_name = self.html_id.replace("screen-", "").capitalize()
+            title_text += f" - {user_name}"
+            
+        title_label = ttk.Label(main_frame, text=title_text, font=("Helvetica", 16, "bold"))
         title_label.pack(pady=10)
         
         # Frame de status
@@ -378,6 +391,17 @@ def main():
     
     print("🌟--- Iniciando HayDay Test Tool ---🌟")
     
+    # Autentica usuário pelo Supabase
+    print("🔐 Iniciando autenticação...")
+    user_data = start_login_window()
+    
+    # Verificar se o usuário foi autenticado
+    if not user_data:
+        print("❌ Autenticação falhou ou foi cancelada. Encerrando aplicação.")
+        return
+    
+    print(f"✅ Usuário {user_data.get('username')} autenticado com sucesso!")
+    
     # Lê o FPS do config carregado pelo screenshotMain
     target_fps = screenshot_config.get("target_fps", 1)
     print(f"⚙️ Configurações: FPS={target_fps} (do screenshotCFG.json)")
@@ -403,7 +427,7 @@ def main():
     
         # 4. Cria a janela principal da interface gráfica
         root = tk.Tk()
-        app = HayDayTestApp(root)
+        app = HayDayTestApp(root, user_data)
         
         # 5. Inicializa o gerenciador de estados
         if initialize_state_manager():
