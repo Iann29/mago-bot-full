@@ -37,3 +37,5 @@ Thumbs.db
 
 # Arquivos com informações sensíveis
 auth/password_hashes.py
+auth/.remembered_credentials
+auth/.remembered_user

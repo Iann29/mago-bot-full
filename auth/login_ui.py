@@ -114,7 +114,7 @@ class LoginWindow:
         if success:
             # Save credentials if remember is checked
             if self.remember_var.get():
-                self.save_credentials(username)
+                self.save_credentials(username, password)
             
             # Call success callback if provided
             if self.on_login_success:
@@ -127,28 +127,46 @@ class LoginWindow:
             print(f"Falha no login: {message}")
             self.status_var.set(message)
     
-    def save_credentials(self, username):
-        """Save the username for future sessions."""
+    def save_credentials(self, username, password):
+        """Save the username and password for future sessions."""
         try:
-            # Simple file-based credential storage
-            # In a production environment, use a more secure approach
-            with open(os.path.join(project_root, "auth", ".remembered_user"), "w") as f:
-                f.write(username)
+            # Simple file-based credential storage with JSON
+            # In a production environment, use a more secure approach like keyring or encrypted storage
+            import json
+            credentials = {"username": username, "password": password}
+            with open(os.path.join(project_root, "auth", ".remembered_credentials"), "w") as f:
+                json.dump(credentials, f)
         except Exception as e:
             print(f"Error saving credentials: {e}")
     
     def load_remembered_username(self):
-        """Load the remembered username if available."""
+        """Load the remembered username and password if available."""
         try:
-            credential_file = os.path.join(project_root, "auth", ".remembered_user")
+            import json
+            credential_file = os.path.join(project_root, "auth", ".remembered_credentials")
             if os.path.exists(credential_file):
                 with open(credential_file, "r") as f:
-                    username = f.read().strip()
-                    if username:
-                        self.username_var.set(username)
+                    credentials = json.load(f)
+                    if credentials and "username" in credentials:
+                        self.username_var.set(credentials["username"])
+                        if "password" in credentials:
+                            self.password_var.set(credentials["password"])
+                            # Marcar a opção de lembrar credenciais
+                            self.remember_var.set(True)
                         return True
         except Exception as e:
             print(f"Error loading credentials: {e}")
+            # Verificar o arquivo no formato antigo como fallback
+            try:
+                old_credential_file = os.path.join(project_root, "auth", ".remembered_user")
+                if os.path.exists(old_credential_file):
+                    with open(old_credential_file, "r") as f:
+                        username = f.read().strip()
+                        if username:
+                            self.username_var.set(username)
+                            return True
+            except Exception:
+                pass
         
         return False
 

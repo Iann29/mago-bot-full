@@ -109,7 +109,7 @@ class HayDayTestApp:
     def __init__(self, root, user_data=None):
         self.root = root
         self.root.title("HayDay Test Tool")
-        self.root.geometry("600x500")
+        self.root.geometry("600x700")
         self.root.resizable(True, True)
         
         # Variáveis de controle
