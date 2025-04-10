@@ -22,7 +22,7 @@ class TemplateMatcher:
         self.default_threshold = default_threshold
         # Opcional: Cache de templates carregados para evitar I/O repetido
         # self._template_cache: Dict[str, np.ndarray] = {} 
-        print("TemplateMatcher inicializado.")
+        print("🔍✨ TemplateMatcher inicializado.")
 
     def _load_template(self, template_path: str) -> Optional[np.ndarray]:
         """
@@ -45,10 +45,8 @@ class TemplateMatcher:
             return None
             
         try:
-            # Carrega em escala de cinza por padrão, pois matchTemplate geralmente
-            # funciona bem assim e é mais rápido/menos sensível a cor.
-            # Se precisar de cor, mude para cv2.IMREAD_COLOR e ajuste a busca.
-            template = cv2.imread(template_path, cv2.IMREAD_GRAYSCALE) 
+            # Carrega a imagem com cores
+            template = cv2.imread(template_path, cv2.IMREAD_COLOR) 
             if template is None:
                 print(f"❌ TemplateMatcher: OpenCV não conseguiu carregar o template '{template_path}' (arquivo inválido ou formato não suportado?)")
                 return None
@@ -98,38 +96,75 @@ class TemplateMatcher:
         # Define o limiar a ser usado
         current_threshold = threshold if threshold is not None else self.default_threshold
 
-        # Prepara a imagem principal (converte para grayscale se necessário)
+        # Usa a imagem principal com suas cores originais
         if len(main_image.shape) == 3: # Se for colorida (BGR)
-            main_gray = cv2.cvtColor(main_image, cv2.COLOR_BGR2GRAY)
-        elif len(main_image.shape) == 2: # Se já for grayscale
-            main_gray = main_image
+            main_img = main_image
+        elif len(main_image.shape) == 2: # Se for grayscale, converte para BGR
+            main_img = cv2.cvtColor(main_image, cv2.COLOR_GRAY2BGR)
         else:
              print("❌ TemplateMatcher: Formato de imagem principal inválido.")
              return None
 
         # Define a área de busca (ROI ou imagem inteira)
-        search_area = main_gray
+        search_area = main_img
         offset_x, offset_y = 0, 0
         if roi:
             try:
                 x, y, w, h = roi
-                # Validação básica da ROI
-                if x < 0 or y < 0 or w <= 0 or h <= 0 or \
-                   x + w > main_gray.shape[1] or y + h > main_gray.shape[0]:
-                    print(f"⚠️ TemplateMatcher: ROI inválida {roi} para imagem de tamanho {main_gray.shape[:2]}. Buscando na imagem inteira.")
+                img_height, img_width = main_img.shape[:2]
+                
+                # Verifica se a ROI está completamente fora da imagem
+                if (x >= img_width or y >= img_height or 
+                    x + w <= 0 or y + h <= 0 or 
+                    w <= 0 or h <= 0):
+                    print(f"⚠️ TemplateMatcher: ROI {roi} está completamente fora da imagem {main_img.shape[:2]}. Buscando na imagem inteira.")
+                    search_area = main_img
+                    offset_x, offset_y = 0, 0
                 else:
-                    search_area = main_gray[y:y+h, x:x+w]
-                    offset_x, offset_y = x, y
+                    # Ajusta a ROI para manter dentro dos limites da imagem (clipping)
+                    # Ajusta coordenada x se estiver fora dos limites
+                    if x < 0:
+                        # Reduz a largura e ajusta o offset
+                        w += x  # x é negativo, então na verdade diminui w
+                        offset_x = 0  # Coordenada inicial ajustada para 0
+                        x = 0  # Define x como 0 para o recorte
+                    else:
+                        offset_x = x  # Mantém o offset original
+                    
+                    # Garante que não ultrapasse a largura da imagem
+                    if x + w > img_width:
+                        w = img_width - x
+                    
+                    # Ajusta coordenada y se estiver fora dos limites
+                    if y < 0:
+                        # Reduz a altura e ajusta o offset
+                        h += y  # y é negativo, então na verdade diminui h
+                        offset_y = 0  # Coordenada inicial ajustada para 0
+                        y = 0  # Define y como 0 para o recorte
+                    else:
+                        offset_y = y  # Mantém o offset original
+                    
+                    # Garante que não ultrapasse a altura da imagem
+                    if y + h > img_height:
+                        h = img_height - y
+                    
+                    # Log para debug quando a ROI foi ajustada
+                    if roi != (x, y, w, h):
+                        print(f"🔍📍 TemplateMatcher: ROI ajustada de {roi} para {(x, y, w, h)}")
+                    
+                    # Recorta a região ajustada
+                    search_area = main_img[y:y+h, x:x+w]
+                    
                     # Verifica se a ROI é maior que o template (necessário para matchTemplate)
                     if search_area.shape[0] < template.shape[0] or search_area.shape[1] < template.shape[1]:
-                         print(f"⚠️ TemplateMatcher: ROI {roi} é menor que o template {template.shape}. Buscando na imagem inteira.")
-                         search_area = main_gray
-                         offset_x, offset_y = 0, 0
+                        print(f"⚠️ TemplateMatcher: ROI ajustada {(x, y, w, h)} é menor que o template {template.shape}. Buscando na imagem inteira.")
+                        search_area = main_img
+                        offset_x, offset_y = 0, 0
 
             except Exception as e_roi:
-                 print(f"⚠️ TemplateMatcher: Erro ao processar ROI {roi}: {e_roi}. Buscando na imagem inteira.")
-                 search_area = main_gray
-                 offset_x, offset_y = 0, 0
+                print(f"⚠️ TemplateMatcher: Erro ao processar ROI {roi}: {e_roi}. Buscando na imagem inteira.")
+                search_area = main_img
+                offset_x, offset_y = 0, 0
         
         # Garante que a área de busca ainda seja válida após o corte da ROI
         if search_area.shape[0] < template.shape[0] or search_area.shape[1] < template.shape[1]:

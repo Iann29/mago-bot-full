@@ -58,7 +58,7 @@ class Screenshotter:
 
         # Verifica o dispositivo - permite None para usar o adb_manager depois
         if self.device is None:
-            print("Screenshotter: Nenhum dispositivo fornecido, usará o adb_manager global quando necessário.")
+            print("📸⚠️ Screenshotter: Nenhum dispositivo fornecido, usará o adb_manager global quando necessário.")
         elif not isinstance(self.device, AdbDevice):
             # Invalidação apenas se o dispositivo for fornecido mas for de tipo inválido
             print("❌ Erro: Screenshotter recebeu um objeto que não é AdbDevice.")
@@ -70,13 +70,13 @@ class Screenshotter:
                 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # Vai para a raiz do projeto
                 self.output_dir_abs = os.path.join(project_root, self.output_dir)
                 os.makedirs(self.output_dir_abs, exist_ok=True)
-                print(f"Modo Debug ATIVADO. Screenshots serão salvas em: '{self.output_dir_abs}'")
+                print(f"📸📦 Modo Debug ATIVADO. Screenshots serão salvas em: '{self.output_dir_abs}'")
             except OSError as e:
                  print(f"❌ Erro ao criar diretório de debug '{self.output_dir_abs}': {e}")
                  print("Modo Debug será desativado.")
                  self.debug_mode = False
         else:
-            print("Screenshotter inicializado (Modo Debug DESATIVADO).")
+            print("📸✨ Screenshotter inicializado (Modo Debug DESATIVADO).")
 
         # Validação inicial do método
         if self.method not in ["adb"]: # Adicionar outros métodos aqui se implementados

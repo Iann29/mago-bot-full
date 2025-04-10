@@ -6,7 +6,7 @@
     "common_templates": {
         "hayday_app_icon": {
             "path": "hayday_app_icon.png",
-            "default_roi": [640, 228, 190, 229]
+            "default_roi": [380, 0, 260, 345]
         }
     }
 }

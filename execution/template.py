@@ -23,9 +23,9 @@ config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'template
 try:
     with open(config_path, 'r') as f:
         template_config = json.load(f)
-    print(f"Configurações de template carregadas de {config_path}")
+    print(f"📂✨ Configurações de template carregadas de {config_path}")
 except Exception as e:
-    print(f"Erro ao carregar configurações de template: {e}")
+    print(f"📂❌ Erro ao carregar configurações de template: {e}")
     template_config = {}  # Configuração vazia se falhar
 
 # Configurações de debug do template

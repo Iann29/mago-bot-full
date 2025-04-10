@@ -45,7 +45,7 @@ def capture_worker(fps, adb_device: AdbDevice):
     consecutive_failures = 0 # Contador de falhas consecutivas
     max_failures = 5 # Número máximo de falhas antes de parar a thread
     
-    print(f"CAPTURE_THREAD: Iniciada, tentando capturar a ~{fps} FPS.")
+    print(f"📷▶️ CAPTURE_THREAD: Iniciada, capturando a ~{fps} FPS")
 
     while not stop_capture_thread:
         # A conexão é estabelecida no início.
@@ -79,18 +79,18 @@ def capture_worker(fps, adb_device: AdbDevice):
                     # print(f"CAPTURE_THREAD: Screenshot OK ({capture_duration:.3f}s). Fila: {screenshot_queue.qsize()}") # Debug
                 else:
                     consecutive_failures += 1
-                    print(f"CAPTURE_THREAD: Falha ao capturar screenshot ({capture_duration:.3f}s) ({consecutive_failures}/{max_failures}).")
+                    print(f"📷⚠️ CAPTURE_THREAD: Falha na captura ({capture_duration:.3f}s) ({consecutive_failures}/{max_failures})")
                     if consecutive_failures >= max_failures:
-                         print("CAPTURE_THREAD: Máximo de falhas de captura atingido. Encerrando thread.")
+                         print("📷❌ CAPTURE_THREAD: Máximo de falhas atingido. Encerrando thread")
                          stop_capture_thread = True
                          break # Sai do loop
                     time.sleep(0.5) # Pausa curta após falha na captura
 
         except Exception as e:
             consecutive_failures += 1
-            print(f"CAPTURE_THREAD: Erro inesperado ao capturar screenshot: {e} ({consecutive_failures}/{max_failures}).")
+            print(f"📷⛔ CAPTURE_THREAD: Erro inesperado: {e} ({consecutive_failures}/{max_failures})")
             if consecutive_failures >= max_failures:
-                 print("CAPTURE_THREAD: Máximo de falhas de captura atingido. Encerrando thread.")
+                 print("📷❌ CAPTURE_THREAD: Máximo de falhas atingido. Encerrando thread")
                  stop_capture_thread = True
                  break # Sai do loop
             time.sleep(0.5) # Pausa curta após falha na captura
@@ -99,7 +99,7 @@ def capture_worker(fps, adb_device: AdbDevice):
         sleep_time = max(0.01, capture_interval - (time.time() - last_capture_time)) # Garante um sleep mínimo
         time.sleep(sleep_time * 0.9) # Dorme 90% do tempo restante
 
-    print("CAPTURE_THREAD: Encerrando...")
+    print("📷⏹️ CAPTURE_THREAD: Encerrando...")
 
 # --- Classe da Interface Gráfica ---
 class HayDayTestApp:
@@ -197,7 +197,7 @@ class HayDayTestApp:
     
     def initialize_adb(self):
         """Inicializa e conecta ao ADB"""
-        self.log("Inicializando conexão ADB...")
+        self.log("📱🔌 Inicializando conexão ADB...")
         
         # Desabilita os botões enquanto conecta
         self.connect_button.config(state="disabled")
@@ -230,7 +230,7 @@ class HayDayTestApp:
             
             # Atualiza a interface
             device_serial = adb_manager.get_target_serial()
-            self.log(f"✅ ADB conectado com sucesso ao dispositivo: {device_serial}")
+            # Removendo log duplicado - ADBManager já mostra essa mensagem
             self.status_label.config(text="Conectado")
             self.device_label.config(text=f"Dispositivo: {device_serial}")
             
@@ -363,7 +363,7 @@ def initialize_state_manager():
         # Inicia o monitoramento de estados usando a fila de screenshots existente
         if screenshot_queue is not None:
             state_manager.start_monitoring(screenshot_queue)
-            print("StateManager inicializado e monitoramento iniciado.")
+            print("🔔✅ StateManager inicializado e monitoramento iniciado.")
             return True
         else:
             print("❌ Erro: Fila de screenshots não inicializada. StateManager não pode ser inicializado.")
@@ -376,30 +376,30 @@ def initialize_state_manager():
 def main():
     global capture_thread, stop_capture_thread
     
-    print("--- Iniciando HayDay Test Tool ---")
+    print("🌟--- Iniciando HayDay Test Tool ---🌟")
     
     # Lê o FPS do config carregado pelo screenshotMain
     target_fps = screenshot_config.get("target_fps", 1)
-    print(f"Configurações de Captura: FPS={target_fps} (do screenshotCFG.json)")
+    print(f"⚙️ Configurações: FPS={target_fps} (do screenshotCFG.json)")
     
     try:
         # 1. Inicializa e conecta o ADBManager
         if not adb_manager.connect_first_device():
-            print("Falha crítica ao conectar ao dispositivo ADB via Manager. Encerrando.")
+            print("🚨 Falha crítica ao conectar ao dispositivo. Encerrando.")
             sys.exit(1)  # Encerra o script se não conectar
 
         # 2. Obtém o dispositivo conectado
         connected_device = adb_manager.get_device()
         if not connected_device:
-            print("Falha crítica: ADBManager conectou, mas não retornou um objeto de dispositivo. Encerrando.")
+            print("🚨 Falha crítica: Conexão OK, mas sem objeto de dispositivo. Encerrando.")
             sys.exit(1)
 
-        print(f"ADB conectado com sucesso ao dispositivo: {adb_manager.get_target_serial()}")
+        # ADBManager já registra a conexão bem-sucedida, não precisamos duplicar
 
         # 3. Cria e inicia a thread de captura, passando o dispositivo
         capture_thread = threading.Thread(target=capture_worker, args=(target_fps, connected_device), daemon=True)
         capture_thread.start()
-        print(f"Thread de captura iniciada (FPS={target_fps})")
+        print(f"📷✨ Thread de captura iniciada (FPS={target_fps})")
     
         # 4. Cria a janela principal da interface gráfica
         root = tk.Tk()
@@ -409,7 +409,7 @@ def main():
         if initialize_state_manager():
             # Registra o callback de mudança de estado
             state_manager.register_state_change_callback(app.on_state_change)
-            print("Registro de callback de estado concluído.")
+            print("🔔✅ Registro de callback de estado concluído.")
         
         # 6. Configura a atualização do status da captura e do estado a cada segundo
         app.update_capture_status()
@@ -426,40 +426,40 @@ def main():
         print(f"Erro inesperado: {e}")
     finally:
         # Garante que a thread seja sinalizada para parar e espera por ela
-        print("MAIN: Sinalizando para thread de captura parar...")
+        print("💻⛔ MAIN: Sinalizando para thread de captura parar...")
         stop_capture_thread = True
         
         # Para o monitoramento de estados
         if state_manager is not None:
-            print("MAIN: Parando monitoramento de estados...")
+            print("💻⏹️ MAIN: Parando monitoramento de estados...")
             state_manager.stop_monitoring()
         
         if capture_thread and capture_thread.is_alive():
-            print("MAIN: Aguardando a thread de captura encerrar...")
+            print("💻⏸️ MAIN: Aguardando a thread de captura encerrar...")
             capture_thread.join(timeout=3)  # Aumenta um pouco o timeout
             if capture_thread.is_alive():
-                print("MAIN: Thread de captura não terminou a tempo.")
+                print("💻⚠️ MAIN: Thread de captura não terminou a tempo.")
                 
-        print("MAIN: Programa encerrado.")
+        print("💻✨ MAIN: Programa encerrado.")
 
 # Função chamada quando a janela principal é fechada
 def on_closing(root):
     """Trata o fechamento da janela principal"""
     global stop_capture_thread, state_manager
     
-    print("MAIN: Aplicativo está sendo fechado...")
+    print("💻🔒 MAIN: Aplicativo está sendo fechado...")
     
     # Para a thread de captura
     stop_capture_thread = True
     
     # Para o monitoramento de estados
     if state_manager is not None:
-        print("MAIN: Parando monitoramento de estados...")
+        print("💻⏹️ MAIN: Parando monitoramento de estados...")
         state_manager.stop_monitoring()
     
     # Destrói a janela e encerra o programa
     root.destroy()
-    print("MAIN: Interface encerrada.")
+    print("💻🚫 MAIN: Interface encerrada.")
 
 # --- Ponto de entrada ---
 if __name__ == "__main__":

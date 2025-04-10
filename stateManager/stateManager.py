@@ -136,7 +136,7 @@ class StateManager:
             screenshot_queue: Fila de screenshots a ser monitorada
         """
         if self._running:
-            print("StateManager já está em execução.")
+            print("🔔⚠️ StateManager já está em execução.")
             return
         
         self._running = True
@@ -146,14 +146,14 @@ class StateManager:
             daemon=True
         )
         self._state_thread.start()
-        print("StateManager: Monitoramento de estados iniciado.")
+        print("🔔✨ StateManager: Monitoramento de estados iniciado.")
     
     def stop_monitoring(self) -> None:
         """Para o monitoramento de estados"""
         self._running = False
         if self._state_thread and self._state_thread.is_alive():
             self._state_thread.join(timeout=2.0)
-            print("StateManager: Monitoramento de estados parado.")
+            print("🔔⏹️ StateManager: Monitoramento de estados parado.")
     
     def _monitor_state_thread(self, screenshot_queue) -> None:
         """
@@ -233,7 +233,7 @@ class StateManager:
                 self._notify_state_change(self._previous_state, self.current_state)
                 
                 if self.verbose or best_match_state != GameState.UNKNOWN:
-                    print(f"Estado alterado: {self._previous_state} -> {self.current_state} (confiança: {best_match_confidence:.4f})")
+                    print(f"🔔🔁 Estado alterado: {self._previous_state} -> {self.current_state} (confiança: {best_match_confidence:.4f})")
     
     def get_current_state(self) -> GameState:
         """Retorna o estado atual do jogo"""
