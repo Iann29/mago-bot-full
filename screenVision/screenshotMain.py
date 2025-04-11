@@ -8,9 +8,12 @@ import time
 import os 
 import json # Para carregar o CFG
 from datetime import datetime 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 import numpy as np 
 import cv2 
+
+# Importa o transmissor de screenshots
+from screenVision.transmitter import transmitter
 
 # Importa o singleton adb_manager
 from ADBmanager import adb_manager
@@ -159,12 +162,15 @@ class Screenshotter:
         return None # Se não conseguiu imagem
 
 
-    def take_screenshot(self, use_pil: bool = False) -> Optional[Image.Image | object]:
+    def take_screenshot(self, use_pil: bool = False, username: Optional[str] = None, transmit: bool = True) -> Optional[Union[Image.Image, np.ndarray]]:
         """
         Tira uma screenshot usando o método configurado. Salva se debug_mode=True.
+        Se transmit=True e username fornecido, envia a imagem para a VPS.
 
         Args:
             use_pil (bool): Define o formato de retorno (PIL ou OpenCV). Padrão False (OpenCV).
+            username (str, opcional): Username associado à captura para identificação na VPS.
+            transmit (bool): Se True, transmite a imagem para a VPS. Padrão True.
 
         Returns:
             PIL.Image or numpy.ndarray or None: A imagem capturada ou None se falhar.
@@ -182,6 +188,21 @@ class Screenshotter:
 
         # Salva apenas se a captura foi bem sucedida
         if image_data is not None:
-             self._save_debug_screenshot(image_data, format_used)
-             
+            self._save_debug_screenshot(image_data, format_used)
+            
+            # Transmite a imagem se solicitado - sempre deve tentar enviar
+            if transmit and transmitter.transmission_enabled:
+                # Define o ID para identificação (usa username se fornecido, senão usa "screen")
+                screen_id = username if username else "screen"
+                
+                # Log para indicar tentativa de transmissão
+                print(f"📸🌐 Transmitindo screenshot para '{screen_id}'...")
+                
+                # Garante que o transmissor tem o username configurado
+                if username:
+                    transmitter.set_username(username)
+                
+                # Envia a imagem para a fila de transmissão
+                transmitter.queue_image(image_data, screen_id)
+            
         return image_data

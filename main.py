@@ -19,6 +19,7 @@ from auth.login_ui import start_login_window
 # Importações dos módulos do projeto
 from ADBmanager import adb_manager # Importa o SINGLETON adb_manager
 from screenVision.screenshotMain import Screenshotter, config as screenshot_config 
+from screenVision.transmitter import transmitter # Importa o transmissor para VPS
 from adbutils import AdbDevice
 from execution.template import run_test, find_template # Importa as funções do módulo de template
 from execution.testnew import execute_masked_test # Importa a função do módulo testnew.py
@@ -35,13 +36,18 @@ capture_thread = None        # A thread de captura que será inicializada
 state_manager = None         # Gerenciador de estados do jogo
 
 # --- Função da Thread de Captura ---
-def capture_worker(fps, adb_device: AdbDevice): 
+def capture_worker(fps, adb_device: AdbDevice, username: str = None): 
     """Função que roda em uma thread separada para capturar screenshots."""
     global stop_capture_thread
     
     # Inicializa o Screenshotter PASSANDO o device conectado
     # A instância do Screenshotter é LOCAL para esta thread
-    screenshotter = Screenshotter(adb_device=adb_device) 
+    screenshotter = Screenshotter(adb_device=adb_device)
+    
+    # Configura o transmissor com o nome de usuário
+    if username:
+        transmitter.set_username(username)
+        print(f"📡👤 Transmissor configurado para usuário: {username}")
     
     capture_interval = 1.0 / fps
     last_capture_time = time.time()
@@ -63,8 +69,8 @@ def capture_worker(fps, adb_device: AdbDevice):
             if current_time - last_capture_time >= capture_interval:
                 time_before_capture = time.time() 
                 
-                # Tira screenshot (padrão OpenCV/BGR)
-                screenshot = screenshotter.take_screenshot(use_pil=False) 
+                # Tira screenshot (padrão OpenCV/BGR) e transmite para VPS
+                screenshot = screenshotter.take_screenshot(use_pil=False, username=username, transmit=True)
                 
                 time_after_capture = time.time() 
                 capture_duration = time_after_capture - time_before_capture
@@ -384,6 +390,26 @@ def initialize_state_manager():
     except Exception as e:
         print(f"❌ Erro ao inicializar StateManager: {e}")
         return False
+        
+# Função para iniciar a captura de screenshots com username
+def start_screenshot_capture(fps, device, username=None):
+    """Inicia a captura de screenshots em thread separada."""
+    global capture_thread, stop_capture_thread
+    
+    # Para a thread anterior se existir
+    if capture_thread and capture_thread.is_alive():
+        stop_capture_thread = True
+        capture_thread.join(timeout=2.0)
+        stop_capture_thread = False
+    
+    # Inicia nova thread
+    capture_thread = threading.Thread(
+        target=capture_worker,
+        args=(fps, device, username),
+        daemon=True
+    )
+    capture_thread.start()
+    return capture_thread
 
 # --- Função Principal ---
 def main():
@@ -420,8 +446,16 @@ def main():
 
         # ADBManager já registra a conexão bem-sucedida, não precisamos duplicar
 
-        # 3. Cria e inicia a thread de captura, passando o dispositivo
-        capture_thread = threading.Thread(target=capture_worker, args=(target_fps, connected_device), daemon=True)
+        # 3. Cria e inicia a thread de captura, passando o dispositivo e identificação do usuário
+        username = user_data.get('username')
+        html_id = user_data.get('html_id')  # Pega o html_id retornado pelo Supabase
+        
+        # Se não tiver html_id, usa o username como fallback
+        screen_id = html_id if html_id else f"screen-{username}"
+        print(f"💻📁 Identificador de tela para transmissão: {screen_id}")
+        
+        # Inicia a thread de captura com o identificador correto
+        capture_thread = threading.Thread(target=capture_worker, args=(target_fps, connected_device, screen_id), daemon=True)
         capture_thread.start()
         print(f"📷✨ Thread de captura iniciada (FPS={target_fps})")
     
