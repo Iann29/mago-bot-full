@@ -49,6 +49,9 @@ class ScreenTransmitter:
         self.username = None
         self.stats = {}  # Dicionário para armazenar estatísticas
         
+        # Callback para notificar a GUI sobre transmissões
+        self.transmission_callback = None
+        
         # Desativa verificação de certificado (temporário - para certificados auto-assinados)
         self.verify_ssl = False
         
@@ -171,6 +174,15 @@ class ScreenTransmitter:
             # Só exibe mensagem se for uma configuração inicial ou mudança
             if old_username != self.username:
                 print(f"📡👤 Transmissor configurado para usuário: {username}")
+                
+    def set_transmission_callback(self, callback_function):
+        """Define um callback para ser chamado quando uma transmissão ocorrer.
+        
+        Args:
+            callback_function: Função a ser chamada quando houver transmissão
+        """
+        self.transmission_callback = callback_function
+        print("📡🔗 Callback de transmissão configurado")
     
     def queue_image(self, image: Any, username: Optional[str] = None):
         """
@@ -191,8 +203,6 @@ class ScreenTransmitter:
         # Garante o formato correto do ID (deve ser: screen-username)
         if not screen_id.startswith("screen-"):
             screen_id = f"screen-{screen_id.lower()}"
-        
-        # Verifica o ID do stream para logs - removida impressão repetitiva
         
         # Limita taxa de transmissão
         now = time.time()
@@ -249,6 +259,14 @@ class ScreenTransmitter:
                 "screen_id": screen_id,
                 "image_data": img_base64
             }
+            
+            # Notifica a GUI sobre a transmissão via callback
+            if self.transmission_callback and callable(self.transmission_callback):
+                try:
+                    self.transmission_callback()
+                except Exception as e:
+                    # Falha silenciosa para não interromper a transmissão
+                    pass
             
             # Contador de transmissões bem-sucedidas para este ID
             if screen_id not in self.stats:

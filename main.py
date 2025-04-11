@@ -178,6 +178,20 @@ class HayDayTestApp:
         self.state_time_label = ttk.Label(state_frame, text="Tempo no estado: 0s")
         self.state_time_label.pack(side=tk.RIGHT, padx=5)
         
+        # Frame de status de transmissão
+        transmission_frame = ttk.LabelFrame(main_frame, text="Status da Transmissão", padding=10)
+        transmission_frame.pack(fill=tk.X, pady=10)
+        
+        self.transmission_status_label = ttk.Label(transmission_frame, text="Transmissão: Inativa", foreground="gray")
+        self.transmission_status_label.pack(side=tk.LEFT, padx=5)
+        
+        self.transmission_indicator = ttk.Label(transmission_frame, text="⚪", font=("Helvetica", 12))
+        self.transmission_indicator.pack(side=tk.RIGHT, padx=5)
+        
+        # Variáveis para controle da transmissão
+        self.last_transmission_time = 0
+        self.transmission_active = False
+        
         # Frame de ações
         actions_frame = ttk.LabelFrame(main_frame, text="Ações", padding=10)
         actions_frame.pack(fill=tk.X, pady=10)
@@ -369,6 +383,34 @@ class HayDayTestApp:
     def on_state_change(self, previous_state, new_state):
         """Callback chamado quando o estado do jogo muda"""
         self.log(f"⚡ Estado alterado: {previous_state} -> {new_state}")
+        
+    def update_transmission_status(self):
+        """Atualiza o status da transmissão na GUI - chamado pelo transmitter"""
+        if not hasattr(self, 'transmission_indicator'):
+            return
+            
+        current_time = time.time()
+        self.last_transmission_time = current_time
+        
+        if not self.transmission_active:
+            self.transmission_active = True
+            self.transmission_status_label.config(text="Transmissão: Ativa", foreground="green")
+            self.transmission_indicator.config(text="🟢")  # Círculo verde
+            
+            # Programa a verificação de timeout após 2 segundos
+            self.root.after(2000, self.check_transmission_timeout)
+    
+    def check_transmission_timeout(self):
+        """Verifica se a transmissão está inativa há mais de 2 segundos"""
+        current_time = time.time()
+        if current_time - self.last_transmission_time > 2 and self.transmission_active:
+            self.transmission_active = False
+            self.transmission_status_label.config(text="Transmissão: Inativa", foreground="gray")
+            self.transmission_indicator.config(text="⚪")  # Círculo cinza
+        
+        # Continua verificando enquanto o aplicativo estiver em execução
+        if hasattr(self, 'root') and self.root.winfo_exists():
+            self.root.after(2000, self.check_transmission_timeout)
 
 # Função para inicializar o gerenciador de estados
 def initialize_state_manager():
@@ -469,7 +511,11 @@ def main():
             state_manager.register_state_change_callback(app.on_state_change)
             print("🔔✅ Registro de callback de estado concluído.")
         
-        # 6. Configura a atualização do status da captura e do estado a cada segundo
+        # 6. Configura o callback de transmissão na GUI para indicar transmissões
+        from screenVision.transmitter import transmitter
+        transmitter.set_transmission_callback(app.update_transmission_status)
+        
+        # 7. Configura a atualização do status da captura e do estado a cada segundo
         app.update_capture_status()
         
         # Configura o fechamento da janela para usar nossa função on_closing

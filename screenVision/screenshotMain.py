@@ -195,8 +195,8 @@ class Screenshotter:
                 # Define o ID para identificação (usa username se fornecido, senão usa "screen")
                 screen_id = username if username else "screen"
                 
-                # Log para indicar tentativa de transmissão
-                print(f"📸🌐 Transmitindo screenshot para '{screen_id}'...")
+                # O callback de transmissão cuidará de atualizar a GUI
+                # A mensagem de log foi removida para evitar flood no terminal
                 
                 # Garante que o transmissor tem o username configurado
                 if username:
