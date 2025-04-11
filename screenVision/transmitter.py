@@ -26,9 +26,9 @@ image_queue = queue.Queue(maxsize=30)  # Limita para evitar uso excessivo de mem
 class ScreenTransmitter:
     """Cliente para transmissão de capturas de tela para o servidor WebSocket."""
     
-    def __init__(self, server_url: str = "https://89.117.32.119:8000", 
-                 api_endpoint: str = "/api/send-image",  # Usando HTTPS para o servidor com SSL
-                 transmission_enabled: bool = True):
+    def __init__(self, server_url: str = "http://89.117.32.119:8000", 
+                api_endpoint: str = "/api/send-image",  # Usando HTTP em vez de HTTPS
+                transmission_enabled: bool = True):
         """
         Inicializa o transmissor de capturas de tela.
         
@@ -43,7 +43,7 @@ class ScreenTransmitter:
         self.transmission_enabled = transmission_enabled
         self.last_transmission_time = 0
         self.min_interval = 0.5  # Intervalo mínimo entre transmissões (500ms)
-        self.compression_quality = 70  # Qualidade de compressão JPEG (0-100)
+        self.compression_quality = 80  # Qualidade de compressão JPEG (0-100)
         self.transmitting = False
         self.worker_thread = None
         self.username = None
@@ -157,9 +157,9 @@ class ScreenTransmitter:
             
             # Adiciona prefixo "screen-" se já não tiver
             if not username.startswith("screen-"):
-                self.username = f"screen-{username}"
+                self.username = f"screen-{username.lower()}"
             else:
-                self.username = username
+                self.username = username.lower()
                 
             # Só exibe mensagem se for uma configuração inicial ou mudança
             if old_username != self.username:
@@ -180,6 +180,10 @@ class ScreenTransmitter:
         screen_id = username if username else self.username
         if not screen_id:
             screen_id = "screen"
+            
+        # Garante o formato correto do ID (deve ser: screen-username)
+        if not screen_id.startswith("screen-"):
+            screen_id = f"screen-{screen_id.lower()}"
         
         # Verifica o ID do stream para logs - removida impressão repetitiva
         
