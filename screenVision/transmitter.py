@@ -26,8 +26,8 @@ image_queue = queue.Queue(maxsize=30)  # Limita para evitar uso excessivo de mem
 class ScreenTransmitter:
     """Cliente para transmissão de capturas de tela para o servidor WebSocket."""
     
-    def __init__(self, server_url: str = "http://89.117.32.119:8000", 
-                api_endpoint: str = "/api/send-image",  # Usando HTTP em vez de HTTPS
+    def __init__(self, server_url: str = "https://socket.magodohayday.com:8000", 
+                api_endpoint: str = "/api/send-image",
                 transmission_enabled: bool = True):
         """
         Inicializa o transmissor de capturas de tela.
@@ -43,11 +43,18 @@ class ScreenTransmitter:
         self.transmission_enabled = transmission_enabled
         self.last_transmission_time = 0
         self.min_interval = 0.5  # Intervalo mínimo entre transmissões (500ms)
-        self.compression_quality = 80  # Qualidade de compressão JPEG (0-100)
+        self.compression_quality = 70  # Qualidade de compressão JPEG (0-100)
         self.transmitting = False
         self.worker_thread = None
         self.username = None
-        self.stats = {}  # Dicionário para armazenar estatísticas de transmissão por screen_id
+        self.stats = {}  # Dicionário para armazenar estatísticas
+        
+        # Desativa verificação de certificado (temporário - para certificados auto-assinados)
+        self.verify_ssl = False
+        
+        # Adiciona tratamento para falhas de conexão
+        self.connection_retry_count = 0
+        self.max_connection_retries = 3
         
         # Inicia thread de processamento assíncrono
         self._start_worker()
@@ -216,6 +223,9 @@ class ScreenTransmitter:
             image: Imagem PIL ou OpenCV para transmitir
             screen_id: Identificador da tela
         """
+        # Resetar contador de tentativas se for uma nova imagem
+        retry_count = 0
+        max_retries = self.max_connection_retries
         try:
             # Converter de OpenCV para PIL se necessário
             pil_image = None
@@ -245,13 +255,28 @@ class ScreenTransmitter:
                 self.stats[screen_id] = {"sent": 0, "errors": 0, "last_log_time": 0}
             
             # Envia para o servidor
-            response = requests.post(
-                self.full_url,
-                json=payload,
-                headers={"Content-Type": "application/json"},
-                timeout=3,  # Timeout para evitar bloqueio
-                verify=False  # Permite certificados auto-assinados
-            )
+            # Tenta enviar a imagem (com retríveis se falhar)
+            while retry_count <= max_retries:
+                try:
+                    response = requests.post(
+                        self.full_url,
+                        json=payload,
+                        headers={"Content-Type": "application/json"},
+                        timeout=5,  # Aumentado para 5 segundos
+                        verify=self.verify_ssl  # Controla verificação SSL
+                    )
+                    # Se o envio for bem-sucedido, resetamos o contador global
+                    self.connection_retry_count = 0
+                    break  # Sai do loop se a requisição for bem-sucedida
+                except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+                    retry_count += 1
+                    if retry_count <= max_retries:
+                        # Tenta novamente se não excedeu o limite
+                        print(f"📡⚠️ Falha ao conectar. Tentativa {retry_count}/{max_retries}")
+                        time.sleep(1)  # Aguarda 1 segundo antes de tentar novamente
+                    else:
+                        # Re-lança a exceção se todas as tentativas falharem
+                        raise
             
             # Já desativamos os avisos de certificado no início do arquivo
             
@@ -279,12 +304,26 @@ class ScreenTransmitter:
             # Incrementa contador de erros
             if screen_id in self.stats:
                 self.stats[screen_id]["errors"] += 1
-            print("📡❌ Falha de conexão com o servidor")
+            
+            # Incrementa o contador de tentativas de conexão global
+            self.connection_retry_count += 1
+            
+            # Log mais detalhado com informações para debug
+            print(f"📡❌ Falha de conexão com o servidor: {self.full_url} (Tentativa {self.connection_retry_count}/{self.max_connection_retries})")
+            
+            # Se tiver muitas falhas seguidas, sugere verificar configuração
+            if self.connection_retry_count >= self.max_connection_retries:
+                print(f"📡⚠️ Múltiplas falhas de conexão. Verifique:")  
+                print(f"  1. Se o domínio está correto: {self.server_url}")  
+                print(f"  2. Se o servidor está online")  
+                print(f"  3. Se a porta 8000 está acessível")
+                # Reset o contador após mostrar mensagem
+                self.connection_retry_count = 0
         except requests.exceptions.Timeout:
             # Incrementa contador de erros
             if screen_id in self.stats:
                 self.stats[screen_id]["errors"] += 1
-            print("📡⏱️ Timeout ao enviar imagem")
+            print(f"📡⏱️ Timeout ao enviar imagem para {self.full_url}")
         except Exception as e:
             # Incrementa contador de erros
             if screen_id in self.stats:
