@@ -15,7 +15,8 @@ logger = get_logger('main')
 def main():
     """Função principal de entrada do programa."""
     # Configura o sistema de logs com as configurações definidas
-    setup_logging(console_level=GLOBAL_LOG_LEVEL, log_to_file=LOG_TO_FILE)
+    # MODIFICAÇÃO: Adicionar redirect_output=True para redirecionar stdout e stderr
+    setup_logging(console_level=GLOBAL_LOG_LEVEL, log_to_file=LOG_TO_FILE, redirect_output=True)
     
     # Configura os níveis de log para cada módulo
     for module, level in MODULE_LOG_LEVELS.items():

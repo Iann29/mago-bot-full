@@ -93,10 +93,28 @@ class TerminalFilter(logging.Filter):
             return record.msg % record.args if record.args else record.msg
         return str(record.msg)
 
+# Função para redirecionar stdout e stderr para arquivos de log
+def redirect_stdout_to_file():
+    """Redireciona toda a saída padrão (stdout e stderr) para um arquivo de log."""
+    import sys
+    from datetime import datetime
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    stdout_log_file = os.path.join(log_dir, f"stdout_{timestamp}.log")
+    stderr_log_file = os.path.join(log_dir, f"stderr_{timestamp}.log")
+    
+    # Abre arquivos de log para stdout e stderr
+    sys.stdout = open(stdout_log_file, 'w', encoding='utf-8')
+    sys.stderr = open(stderr_log_file, 'w', encoding='utf-8')
+    
+    print(f"Toda saída de stdout redirecionada para {stdout_log_file}")
+    print(f"Toda saída de stderr redirecionada para {stderr_log_file}")
+
 # Configuração global
 def setup_logging(console_level: int = DEFAULT_LOG_LEVEL, 
                  file_level: int = logging.DEBUG,
-                 log_to_file: bool = True) -> None:
+                 log_to_file: bool = True,
+                 redirect_output: bool = True) -> None:
     """
     Configura o sistema de logging global.
     
@@ -104,6 +122,7 @@ def setup_logging(console_level: int = DEFAULT_LOG_LEVEL,
         console_level: Nível de log para console (apenas para TERMINAL_DEBUG e superiores)
         file_level: Nível de log para arquivo
         log_to_file: Se True, salva logs em arquivo
+        redirect_output: Se True, redireciona stdout e stderr para arquivos
     """
     # Configuração do root logger
     root_logger = logging.getLogger()
@@ -113,10 +132,17 @@ def setup_logging(console_level: int = DEFAULT_LOG_LEVEL,
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
     
-    # Console handler com formatador de emoji e filtro para mostrar apenas TERMINAL_DEBUG
+    # MODIFICAÇÃO: Fazer o console mostrar APENAS mensagens TERMINAL_DEBUG
     console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(logging.DEBUG)  # Permite todos os níveis, mas usamos filtro
-    console_handler.addFilter(TerminalFilter())  # Aplica filtro para mostrar apenas TERMINAL_DEBUG ou superior
+    console_handler.setLevel(TERMINAL_DEBUG)  # Apenas TERMINAL_DEBUG ou superior
+    
+    # MODIFICAÇÃO: Simplificar o filtro para apenas mostrar TERMINAL_DEBUG
+    class StrictTerminalFilter(logging.Filter):
+        def filter(self, record):
+            # Permite APENAS mensagens do nível TERMINAL_DEBUG no console
+            return record.levelno >= TERMINAL_DEBUG
+    
+    console_handler.addFilter(StrictTerminalFilter())
     console_formatter = EmojiFormatter(CONSOLE_FORMAT)
     console_handler.setFormatter(console_formatter)
     root_logger.addHandler(console_handler)
@@ -129,6 +155,10 @@ def setup_logging(console_level: int = DEFAULT_LOG_LEVEL,
     file_formatter = logging.Formatter(FILE_FORMAT)
     file_handler.setFormatter(file_formatter)
     root_logger.addHandler(file_handler)
+    
+    # Redireciona stdout e stderr para arquivos
+    if redirect_output:
+        redirect_stdout_to_file()
 
 # Função para obter logger de módulo
 def get_logger(module_name: str) -> logging.Logger:

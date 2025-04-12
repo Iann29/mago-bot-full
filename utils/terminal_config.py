@@ -6,22 +6,16 @@ de imagens para VPS aparecerão no terminal.
 
 # Abordagem negativa para filtragem: bloqueie tudo exceto o que é explicitamente permitido
 
-# Lista EXATA de padrões que podem aparecer no terminal
-# APENAS as mensagens que contêm exatamente estes padrões aparecerão no terminal
+# MODIFICAÇÃO: Lista muito mais restrita de padrões permitidos
 TERMINAL_MESSAGE_PATTERNS = [
-    # APENAS mensagens de estado
-    "Estado alterado:",
-    "→ Mobile Home",
-    "→ Unknown",
-    
-    # APENAS mensagens de transmissão de imagens para VPS
-    "Status: ",
-    "imagens enviadas",
-    "imagens transmitidas"
+    # APENAS as mensagens mais essenciais
+    "Iniciando HayDay Test Tool",
+    "Usuário autenticado com sucesso",
+    "Thread de captura iniciada"
 ]
 
 # Para ignorar explicitamente mensagens mesmo que contenham padrões acima
-# Útil para filtrar mensagens que contêm padrões desejados mas não são as mensagens alvo
+# MODIFICAÇÃO: Lista mais abrangente de padrões a ignorar
 IGNORE_PATTERNS = [
     "ADB",
     "Conectando",
@@ -34,12 +28,23 @@ IGNORE_PATTERNS = [
     "inicializado",
     "StateManager",
     "Callback",
-    "registrado",
     "inicializando",
     "aguardando",
     "limpando",
     "liberando",
-    "daemons"
+    "daemons",
+    "Status",
+    "estado",
+    "Estado",
+    "Debug",
+    "debug",
+    "template",
+    "Template",
+    "encontrado",
+    "Erro",
+    "erro",
+    "falha",
+    "Falha"
 ]
 
 # Funções de verificação
@@ -53,6 +58,7 @@ def should_show_in_terminal(message: str) -> bool:
     Returns:
         True se a mensagem deve ser exibida no terminal, False caso contrário
     """
+    # MODIFICAÇÃO: Por padrão, retorna False para quase tudo
     # Primeiro verifica se a mensagem contém algum padrão a ser ignorado
     if any(ignore_pattern in message for ignore_pattern in IGNORE_PATTERNS):
         return False
