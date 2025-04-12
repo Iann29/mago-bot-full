@@ -232,6 +232,7 @@ class HayDayTestApp:
         # Inicia o timer para atualizar a UI
         self.schedule_ui_update(self.update_capture_status, 1000)  # Atualiza a cada 1s
         self.schedule_ui_update(self.check_transmission_timeout, 2000)  # Verifica a cada 2s
+        self.schedule_ui_update(self.update_state_time, 1000)  # Atualiza tempo de estado a cada 1s
         
         # Configura o callback no transmissor
         transmitter.set_transmission_callback(self.update_transmission_status)
@@ -575,6 +576,31 @@ class HayDayTestApp:
         
         # Reagenda verificação
         self.schedule_ui_update(self.check_transmission_timeout, 2000)
+    
+    def update_state_time(self):
+        """Atualiza o tempo desde a última mudança de estado"""
+        if not self.ui_active:
+            return
+        
+        try:
+            # Importa o state_manager para obter o tempo no estado atual
+            from cerebro.state import state_manager
+            
+            if state_manager:
+                # Obtém o tempo em segundos desde a última mudança de estado
+                duration = state_manager.get_state_duration()
+                
+                # Formata o tempo (pode ser formatado em minutos/horas se necessário)
+                duration_str = f"{int(duration)}s"
+                
+                # Atualiza o texto na interface
+                self.state_time_label.config(text=f"Tempo no estado: {duration_str}")
+        except Exception as e:
+            # Ignora erros se a interface já estiver sendo destruída
+            pass
+        
+        # Reagenda a atualização
+        self.schedule_ui_update(self.update_state_time, 1000)
         
     def check_emulator_status(self):
         """Verifica o status do emulador quando o botão é clicado."""
