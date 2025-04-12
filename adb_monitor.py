@@ -27,6 +27,9 @@ class ADBMonitor:
         self._monitor_interval = 3.0  # Verificar a cada 3 segundos
         self._last_known_state = False  # Estado inicial de conexão desconhecido
         
+        # Evento para sinalizar parada de forma mais responsiva
+        self._stop_event = threading.Event()
+        
         # Registra callbacks no ADBManager
         adb_manager.register_connection_callback = self.register_connection_callback
         adb_manager.register_disconnect_callback = self.register_disconnect_callback
@@ -49,7 +52,10 @@ class ADBMonitor:
             print("🔔⚠️ ADB Monitor: Monitoramento já está ativo.")
             return
             
+        # Reseta sinais de parada
         self._stop_monitor = False
+        self._stop_event.clear()
+        
         self._monitor_thread = threading.Thread(target=self._connection_monitor_worker, daemon=True)
         self._monitor_thread.start()
         print("🔔✅ ADB Monitor: Monitoramento de conexão iniciado.")
@@ -59,12 +65,21 @@ class ADBMonitor:
         if self._monitor_thread is None or not self._monitor_thread.is_alive():
             return
             
+        print("🔔⏹️ ADB Monitor: Parando monitoramento...")
+        
+        # Usa ambos os mecanismos de parada para garantir
         self._stop_monitor = True
-        self._monitor_thread.join(timeout=2.0)  # Aguarda até 2 segundos para a thread encerrar
+        self._stop_event.set()  # Sinaliza para a thread parar imediatamente
+        
+        # Reduzimos o timeout para 1.0s já que o evento vai responder mais rapidamente
+        self._monitor_thread.join(timeout=1.0)
+        
         if self._monitor_thread.is_alive():
             print("🔔⚠️ ADB Monitor: Thread de monitoramento não encerrou a tempo.")
         else:
-            print("🔔⏹️ ADB Monitor: Monitoramento de conexão encerrado.")
+            print("🔔🔇 ADB Monitor: Thread de monitoramento encerrada.")
+            
+        print("🔔⏹️ ADB Monitor: Monitoramento de conexão encerrado.")
     
     def _connection_monitor_worker(self) -> None:
         """Thread de trabalho que monitora continuamente o estado da conexão ADB."""
@@ -81,7 +96,8 @@ class ADBMonitor:
                 except Exception as e:
                     print(f"🔔❌ ADB Monitor: Erro ao chamar callback de conexão: {e}")
         
-        while not self._stop_monitor:
+        # Checa tanto a flag quanto o evento de parada
+        while not self._stop_monitor and not self._stop_event.is_set():
             try:
                 # Verificação de estado atual
                 is_connected_now = adb_manager.is_connected()
@@ -113,8 +129,10 @@ class ADBMonitor:
             except Exception as e:
                 print(f"🔔⚠️ ADB Monitor: Erro durante monitoramento: {e}")
             
-            # Pausa entre verificações
-            time.sleep(self._monitor_interval)
+            # Pausa entre verificações, mas permite interrupção
+            # Em vez de sleep fixo, usa wait com timeout para poder interromper mais rápido
+            if self._stop_event.wait(timeout=1.0):  # Verifica a cada 1 segundo, independente do intervalo
+                break  # Se o evento for sinalizado, sai do loop imediatamente
         
         print("🔔🔇 ADB Monitor: Thread de monitoramento encerrada.")
 

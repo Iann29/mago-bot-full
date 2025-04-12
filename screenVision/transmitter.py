@@ -46,8 +46,12 @@ class ScreenTransmitter:
         self.compression_quality = 70  # Qualidade de compressão JPEG (0-100)
         self.transmitting = False
         self.worker_thread = None
+        self.status_thread = None
         self.username = None
         self.stats = {}  # Dicionário para armazenar estatísticas
+        
+        # Evento para sinalizar encerramento - mais responsivo que uma flag booleana
+        self.stop_event = threading.Event()
         
         # Callback para notificar a GUI sobre transmissões
         self.transmission_callback = None
@@ -69,7 +73,11 @@ class ScreenTransmitter:
         if self.worker_thread is not None and self.worker_thread.is_alive():
             return
             
+        # Reseta o evento de parada
+        self.stop_event.clear()
         self.transmitting = True
+        
+        # Inicia a thread principal de processamento
         self.worker_thread = threading.Thread(target=self._process_queue, daemon=True)
         self.worker_thread.start()
         
@@ -81,8 +89,11 @@ class ScreenTransmitter:
     
     def _periodic_status(self):
         """Exibe estatísticas de transmissão periodicamente."""
-        while self.transmitting:
-            time.sleep(30)  # Atualiza a cada 30 segundos
+        while self.transmitting and not self.stop_event.is_set():
+            # Usa wait com timeout em vez de sleep para responder mais rápido à parada
+            # Espera no máximo 30 segundos, mas pode ser interrompido pelo evento de parada
+            if self.stop_event.wait(timeout=5.0):  # Verifica a cada 5 segundos
+                break
             
             # Se existem estatísticas, mostra um resumo consolidado
             total_sent = sum(stat["sent"] for stat in self.stats.values())
@@ -103,14 +114,28 @@ class ScreenTransmitter:
     
     def stop(self):
         """Para a transmissão de imagens."""
+        print("📡⏹️ Transmissor: Parando threads...")
         self.transmitting = False
-        # Limpa a fila
+        
+        # Sinaliza para as threads pararem imediatamente
+        self.stop_event.set()
+        
+        # Limpa a fila para evitar bloqueios
         while not image_queue.empty():
             try:
                 image_queue.get_nowait()
                 image_queue.task_done()
             except queue.Empty:
                 break
+                
+        # Aguarda as threads terminarem (breve timeout)
+        if self.worker_thread and self.worker_thread.is_alive():
+            self.worker_thread.join(timeout=1.0)
+            
+        if self.status_thread and self.status_thread.is_alive():
+            self.status_thread.join(timeout=1.0)
+            
+        print("📡✅ Transmissor: Threads de transmissão paradas.")
     
     def _process_queue(self):
         """Processa a fila de imagens e envia para o servidor."""
@@ -120,11 +145,12 @@ class ScreenTransmitter:
         last_status_time = time.time()
         status_interval = 30  # Mostra status a cada 30 segundos
         
-        while self.transmitting:
+        while self.transmitting and not self.stop_event.is_set():
             try:
-                # Espera por um item na fila (timeout para permitir check de self.transmitting)
+                # Espera por um item na fila com timeout curto para responder melhor ao encerramento
                 try:
-                    item = image_queue.get(timeout=1.0)
+                    # Reduzido o timeout para 0.5s para responder mais rapidamente à parada
+                    item = image_queue.get(timeout=0.5)
                 except queue.Empty:
                     # Verifica se é hora de mostrar estatísticas
                     current_time = time.time()
