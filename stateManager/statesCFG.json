@@ -38,6 +38,14 @@
       "confidence": 0.75,
       "image_path": "dataset/imageStates/bookmenu.png",
       "use_mask": false,
+      "priority": ["jogo_aberto", "menu_add_client"]
+    },
+    "menu_add_client":{
+      "display_name": "Menu de adicionar cliente",
+      "roi": [201, 152, 167, 101],
+      "confidence": 0.75,
+      "image_path": "dataset/imageStates/menuclienteaberto.png",
+      "use_mask": false,
       "priority": ["jogo_aberto"]
     }
   }
