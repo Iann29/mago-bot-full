@@ -12,6 +12,8 @@ from PIL import Image, ImageTk  # Para trabalhar com imagens e GIFs
 
 # Importa o módulo de monitoramento ADB
 from adb_monitor import setup_adb_monitor_in_app, cleanup_adb_monitor_on_exit
+# Importa módulo de encerramento seguro de threads
+from thread_terminator import wait_for_thread_termination, terminate_all_daemon_threads
 
 # Adiciona a raiz do projeto ao PYTHONPATH para garantir importações corretas
 project_root = os.path.dirname(os.path.abspath(__file__))
