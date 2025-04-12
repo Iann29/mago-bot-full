@@ -63,7 +63,7 @@ def register_state_callback(callback: Callable[[str, str], None]) -> None:
 
 def get_current_state() -> str:
     """
-    Retorna o estado atual do jogo.
+    Retorna o nome amigável do estado atual do jogo.
     
     Returns:
         str: Nome amigável (display_name) do estado atual ou "Desconhecido" se não inicializado
@@ -77,6 +77,17 @@ def get_current_state() -> str:
             # Formata o ID do estado para exibição
             return current_state_id.replace('_', ' ').title()
     return "Desconhecido"
+
+def get_current_state_id() -> str:
+    """
+    Retorna o ID interno do estado atual do jogo.
+    
+    Returns:
+        str: ID interno do estado atual ou "unknown" se não inicializado
+    """
+    if state_manager:
+        return state_manager.current_state
+    return "unknown"
 
 def stop_state_monitoring() -> None:
     """Para o monitoramento de estados."""

@@ -28,7 +28,8 @@ class HayDayTestApp:
         'Serra': 'kit_serra',
         'Dinamite': 'kit_dinamite',
         'Machado': 'kit_machado',
-        'Pá': 'kit_pa'
+        'Pá': 'kit_pa',
+        'Add Cliente': 'addCliente'
     }
     
     def __init__(self, root, user_data=None):
@@ -355,45 +356,143 @@ class HayDayTestApp:
             messagebox.showerror("Erro no Teste", f"Ocorreu um erro: {e}")
     
     def run_kit(self, kit_name, module_name):
-        """Executa a venda do kit especificado"""
+        """Executa a venda do kit especificado ou adiciona cliente"""
         if not self.connected_device:
             messagebox.showerror("Erro", "Nenhum dispositivo conectado!")
             return
+        
+        # Caso especial para Add Cliente
+        if kit_name == "Add Cliente":
+            # Cria uma janela para inserir a tag do cliente
+            customer_dialog = tk.Toplevel(self.root)
+            customer_dialog.title("Adicionar Cliente")
+            customer_dialog.geometry("400x150")
+            customer_dialog.resizable(False, False)
+            customer_dialog.transient(self.root)  # Define como janela filha
+            customer_dialog.grab_set()  # Torna modal
             
-        # Cria thread para não travar a UI
+            # Centraliza a janela
+            customer_dialog.update_idletasks()
+            width = customer_dialog.winfo_width()
+            height = customer_dialog.winfo_height()
+            x = (customer_dialog.winfo_screenwidth() // 2) - (width // 2)
+            y = (customer_dialog.winfo_screenheight() // 2) - (height // 2)
+            customer_dialog.geometry(f"{width}x{height}+{x}+{y}")
+            
+            # Configura estilo da janela
+            customer_dialog.configure(bg="#2d2d2d")
+            
+            # Frame principal
+            main_frame = ttk.Frame(customer_dialog, padding=20)
+            main_frame.pack(fill=tk.BOTH, expand=True)
+            
+            # Label de instrução
+            instruction_label = ttk.Label(main_frame, text="Digite a tag do cliente:", font=("Segoe UI", 10))
+            instruction_label.pack(pady=5, anchor=tk.W)
+            
+            # Campo de texto para a tag
+            tag_var = tk.StringVar()
+            tag_entry = ttk.Entry(main_frame, textvariable=tag_var, width=40)
+            tag_entry.pack(pady=10, fill=tk.X)
+            tag_entry.focus()  # Coloca o foco no campo de texto
+            
+            # Frame para os botões
+            button_frame = ttk.Frame(main_frame)
+            button_frame.pack(fill=tk.X, pady=10)
+            
+            # Função para confirmar e iniciar o processo
+            def confirm_add_client():
+                customer_id = tag_var.get().strip()
+                if not customer_id:
+                    messagebox.showwarning("Aviso", "Por favor, digite uma tag válida!")
+                    return
+                
+                # Fecha a janela de diálogo
+                customer_dialog.destroy()
+                
+                # Inicia a thread para adicionar o cliente
+                kit_thread = threading.Thread(
+                    target=lambda: self._run_kit_thread(kit_name, module_name, customer_id)
+                )
+                kit_thread.daemon = True
+                kit_thread.start()
+            
+            # Botão de confirmar
+            confirm_button = ttk.Button(
+                button_frame, 
+                text="Adicionar Cliente", 
+                command=confirm_add_client,
+                style="Accent.TButton"
+            )
+            confirm_button.pack(side=tk.RIGHT, padx=5)
+            
+            # Botão de cancelar
+            cancel_button = ttk.Button(
+                button_frame, 
+                text="Cancelar", 
+                command=customer_dialog.destroy
+            )
+            cancel_button.pack(side=tk.RIGHT, padx=5)
+            
+            # Permite que Enter confirme o diálogo
+            customer_dialog.bind("<Return>", lambda e: confirm_add_client())
+            customer_dialog.bind("<Escape>", lambda e: customer_dialog.destroy())
+            
+            # Espera a interação do usuário
+            return
+        
+        # Outros kits - fluxo normal
         kit_thread = threading.Thread(target=lambda: self._run_kit_thread(kit_name, module_name))
         kit_thread.daemon = True
         kit_thread.start()
     
-    def _run_kit_thread(self, kit_name, module_name):
-        """Função que executa a venda do kit em thread separada"""
+    def _run_kit_thread(self, kit_name, module_name, customer_id=None):
+        """Função que executa a venda do kit ou operação em thread separada"""
         try:
-            self.log(f"Iniciando venda do Kit {kit_name}...")
+            # Mensagem apropriada dependendo da operação
+            if kit_name == "Add Cliente":
+                self.log(f"Iniciando adição de cliente com tag: {customer_id}...")
+            else:
+                self.log(f"Iniciando venda do Kit {kit_name}...")
             
-            # Importa dinamicamente o módulo do kit
+            # Importa dinamicamente o módulo
             import importlib
             try:
-                # Carrega o módulo do kit da pasta execution
+                # Carrega o módulo da pasta execution
                 kit_module = importlib.import_module(f'execution.{module_name}')
                 
                 # Verifica se o módulo tem uma função run
                 if hasattr(kit_module, 'run'):
-                    result = kit_module.run()
-                    if result:
-                        self.log(f"✅ Kit {kit_name} vendido com sucesso!")
-                        messagebox.showinfo("Venda de Kit", f"Kit {kit_name} vendido com sucesso!")
+                    # Executa com parâmetro adicional se for adição de cliente
+                    if kit_name == "Add Cliente" and customer_id:
+                        result = kit_module.run(customer_id)
                     else:
-                        self.log(f"⚠️ Kit {kit_name}: Operação finalizada")
-                        messagebox.showinfo("Venda de Kit", f"Operação de venda do Kit {kit_name} finalizada.")
+                        result = kit_module.run()
+                    
+                    # Mensagens de resultado apropriadas
+                    if result:
+                        if kit_name == "Add Cliente":
+                            self.log(f"✅ Cliente {customer_id} adicionado com sucesso!")
+                            messagebox.showinfo("Sucesso", f"Cliente com tag {customer_id} adicionado com sucesso!")
+                        else:
+                            self.log(f"✅ Kit {kit_name} vendido com sucesso!")
+                            messagebox.showinfo("Venda de Kit", f"Kit {kit_name} vendido com sucesso!")
+                    else:
+                        if kit_name == "Add Cliente":
+                            self.log(f"⚠️ Adição de cliente {customer_id}: operação finalizada sem sucesso")
+                            messagebox.showinfo("Resultado", f"Operação de adição do cliente finalizada sem sucesso.")
+                        else:
+                            self.log(f"⚠️ Kit {kit_name}: Operação finalizada")
+                            messagebox.showinfo("Venda de Kit", f"Operação de venda do Kit {kit_name} finalizada.")
                 else:
-                    self.log(f"❌ Kit {kit_name}: Módulo não possui função 'run'")
-                    messagebox.showwarning("Erro de Kit", f"O módulo do Kit {kit_name} não possui função 'run'")
+                    self.log(f"❌ Módulo {module_name}: não possui função 'run'")
+                    messagebox.showwarning("Erro de Módulo", f"O módulo '{module_name}' não possui função 'run'")
             except Exception as e:
-                self.log(f"❌ Erro ao carregar módulo do Kit {kit_name}: {e}")
-                messagebox.showerror("Erro de Importação", f"Erro ao carregar módulo do Kit {kit_name}: {e}")
+                self.log(f"❌ Erro ao carregar módulo {module_name}: {e}")
+                messagebox.showerror("Erro de Importação", f"Erro ao carregar módulo '{module_name}': {e}")
         except Exception as e:
-            self.log(f"❌ ERRO ao executar Kit {kit_name}: {e}")
-            messagebox.showerror("Erro na Venda", f"Ocorreu um erro: {e}")
+            self.log(f"❌ ERRO ao executar operação {kit_name}: {e}")
+            messagebox.showerror("Erro na Operação", f"Ocorreu um erro: {e}")
     
     def schedule_ui_update(self, callback, delay_ms):
         """Agenda uma atualização de UI com segurança"""

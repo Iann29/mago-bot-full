@@ -44,8 +44,15 @@ def click(x: Union[int, float], y: Union[int, float], duration: float = 0.05) ->
         return False
     
     try:
-        device.click(x, y, duration)
-        logger.info(f"Click realizado em ({x}, {y}) com duração {duration}s")
+        # Convertendo para inteiros garantindo que sejam coordenadas absolutas
+        x_int = int(x)
+        y_int = int(y)
+        
+        # Usando o comando shell 'input tap' que funciona melhor com o emulador
+        result = device.shell(f"input tap {x_int} {y_int}")
+        time.sleep(duration)  # Esperamos a duração especificada
+        
+        logger.info(f"Click realizado em ({x_int}, {y_int}) via input tap com duração {duration}s")
         return True
     except Exception as e:
         logger.error(f"Erro ao realizar click em ({x}, {y}): {e}")

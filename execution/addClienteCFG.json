@@ -1,0 +1,47 @@
+{
+  "addCliente": {
+    "state": "jogo_aberto",
+    "actions": [
+      {
+        "type": "click",
+        "params": [618, 453],
+        "description": "Clica no botão de adicionar cliente"
+      },
+      {
+        "type": "wait",
+        "params": [0.2],
+        "description": "Espera 200ms"
+      },
+      {
+        "type": "click",
+        "params": [249, 445],
+        "description": "Clica no livro"
+      },
+      {
+        "type": "wait",
+        "params": [0.5],
+        "description": "Espera 500ms"
+      },
+      {
+        "type": "verify_state",
+        "params": ["menu_add_client", 2],
+        "description": "Verifica se o estado mudou para menu_add_client (2 tentativas)"
+      },
+      {
+        "type": "click",
+        "params": [189, 169],
+        "description": "Clica no campo de entrada de tag"
+      },
+      {
+        "type": "wait",
+        "params": [0.1],
+        "description": "Espera 100ms"
+      },
+      {
+        "type": "send_keys",
+        "params": ["<customer_id>"],
+        "description": "Digita o ID do cliente"
+      }
+    ]
+  }
+}
