@@ -7,6 +7,11 @@ import sys # Para sair em caso de falha crítica
 import tkinter as tk
 from tkinter import ttk, messagebox
 import os
+import winsound  # For playing sounds on Windows
+from PIL import Image, ImageTk  # Para trabalhar com imagens e GIFs
+
+# Importa o módulo de monitoramento ADB
+from adb_monitor import setup_adb_monitor_in_app, cleanup_adb_monitor_on_exit
 
 # Adiciona a raiz do projeto ao PYTHONPATH para garantir importações corretas
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -121,6 +126,7 @@ class HayDayTestApp:
         # Variáveis de controle
         self.adb_manager_instance = None
         self.connected_device = None
+        self.emulator_connection_lost = False
         
         # Dados do usuário autenticado
         self.user_data = user_data
@@ -131,6 +137,13 @@ class HayDayTestApp:
         
         # Inicializar ADB ao abrir
         self.initialize_adb()
+        
+        # Registrar callbacks no ADBManager para detecção proativa
+        adb_manager.register_connection_callback(self.on_emulator_connected)
+        adb_manager.register_disconnect_callback(self.on_emulator_disconnected)
+        
+        # Iniciar monitoramento de conexão
+        adb_manager.start_connection_monitoring()
     
     def setup_ui(self):
         """Configura todos os elementos da interface"""
@@ -196,10 +209,6 @@ class HayDayTestApp:
         actions_frame = ttk.LabelFrame(main_frame, text="Ações", padding=10)
         actions_frame.pack(fill=tk.X, pady=10)
         
-        # Botão de conectar
-        self.connect_button = ttk.Button(actions_frame, text="Conectar ADB", command=self.initialize_adb)
-        self.connect_button.pack(fill=tk.X, pady=5)
-        
         # Botão de executar teste de template
         self.test_button = ttk.Button(actions_frame, text="Executar Teste de Template", command=self.run_template_test)
         self.test_button.pack(fill=tk.X, pady=5)
@@ -233,7 +242,6 @@ class HayDayTestApp:
         self.log("📱🔌 Inicializando conexão ADB...")
         
         # Desabilita os botões enquanto conecta
-        self.connect_button.config(state="disabled")
         self.test_button.config(state="disabled")
         self.masked_test_button.config(state="disabled")
         
@@ -247,8 +255,15 @@ class HayDayTestApp:
                     self.log("❌ Falha ao conectar ao dispositivo ADB via Manager.")
                     self.status_label.config(text="Falha na conexão")
                     self.device_label.config(text="Dispositivo: Nenhum")
-                    messagebox.showerror("Erro de Conexão", "Não foi possível conectar a nenhum dispositivo Android.")
-                    self.connect_button.config(state="normal")
+                    
+                    # Toca um som de alerta antes de mostrar o popup
+                    try:
+                        winsound.PlaySound("SystemExclamation", winsound.SND_ASYNC)
+                    except Exception as sound_error:
+                        self.log(f"Erro ao reproduzir som: {sound_error}")
+                    
+                    # Exibe mensagem amigável informando que o emulador está fechado
+                    messagebox.showerror("Emulador Fechado", "Teu emulador ta fechado pai!")
                     return False
             
             # Obtém o dispositivo conectado
@@ -257,8 +272,14 @@ class HayDayTestApp:
                 self.log("❌ ADBManager conectou, mas não retornou um objeto de dispositivo.")
                 self.status_label.config(text="Falha na conexão")
                 self.device_label.config(text="Dispositivo: Nenhum")
+                
+                # Toca um som de alerta antes de mostrar o popup
+                try:
+                    winsound.PlaySound("SystemExclamation", winsound.SND_ASYNC)
+                except Exception as sound_error:
+                    self.log(f"Erro ao reproduzir som: {sound_error}")
+                
                 messagebox.showerror("Erro de Conexão", "Não foi possível obter o objeto do dispositivo.")
-                self.connect_button.config(state="normal")
                 return False
             
             # Atualiza a interface
@@ -270,12 +291,14 @@ class HayDayTestApp:
             # Habilita os botões de teste
             self.test_button.config(state="normal")
             self.masked_test_button.config(state="normal")
-            self.connect_button.config(state="normal")
             
             # Atualiza o status da thread de captura
             if capture_thread and capture_thread.is_alive():
                 self.capture_status_label.config(text="Thread de captura: Ativa")
                 self.capture_fps_label.config(text=f"FPS: {TARGET_FPS}")
+                
+            # Reset flag de perda de conexão
+            self.emulator_connection_lost = False
             
             return True
             
@@ -283,9 +306,100 @@ class HayDayTestApp:
             self.log(f"❌ Erro ao conectar: {e}")
             self.status_label.config(text="Erro")
             self.device_label.config(text="Dispositivo: Nenhum")
-            messagebox.showerror("Erro", f"Erro ao conectar: {e}")
-            self.connect_button.config(state="normal")
+            
+            # Toca um som de alerta antes de mostrar o popup
+            try:
+                winsound.PlaySound("SystemExclamation", winsound.SND_ASYNC)
+            except Exception as sound_error:
+                self.log(f"Erro ao reproduzir som: {sound_error}")
+            
+            # Mostra mensagem amigável caso seja um erro de conexão ADB
+            if "adb" in str(e).lower() or "connection" in str(e).lower() or "device" in str(e).lower():
+                messagebox.showerror("GÊnio", "Teu emulador ta fechado pai!")
+            else:
+                messagebox.showerror("Erro", f"Erro ao conectar: {e}")
+                
+            try:
+                self.connect_button.config(state="normal")
+            except:
+                pass  # O botão pode não existir
+                
             return False
+            
+    def on_emulator_connected(self, device_serial):
+        """Callback chamado quando o emulador é conectado/reconectado."""
+        if not hasattr(self, 'root') or not self.root.winfo_exists():
+            return  # Janela foi fechada
+            
+        # Executa operações na thread do Tkinter
+        self.root.after(0, lambda: self._handle_emulator_connected(device_serial))
+    
+    def _handle_emulator_connected(self, device_serial):
+        """Manipula o evento de conexão do emulador na thread da interface gráfica."""
+        if self.emulator_connection_lost:
+            self.log(f"📱✅ Emulador reconectado! Serial: {device_serial}")
+            self.status_label.config(text="Reconectado")
+            self.device_label.config(text=f"Dispositivo: {device_serial}")
+            
+            # Habilita os botões
+            self.test_button.config(state="normal")
+            self.masked_test_button.config(state="normal")
+            
+            # Tenta reiniciar a thread de captura se não estiver rodando
+            global capture_thread, stop_capture_thread
+            if (not capture_thread or not capture_thread.is_alive()) and not stop_capture_thread:
+                self.log("📱📷 Tentando reiniciar a thread de captura...")
+                try:
+                    # Obtém o dispositivo conectado novamente
+                    self.connected_device = adb_manager.get_device()
+                    if self.connected_device:
+                        username = self.html_id if self.html_id else None
+                        start_screenshot_capture(TARGET_FPS, self.connected_device, username=username)
+                        self.capture_status_label.config(text="Thread de captura: Ativa")
+                        self.capture_fps_label.config(text=f"FPS: {TARGET_FPS}")
+                        self.log("📷✅ Thread de captura reiniciada!")
+                except Exception as e:
+                    self.log(f"❌ Erro ao reiniciar thread de captura: {e}")
+            
+            # Reset flag
+            self.emulator_connection_lost = False
+    
+    def on_emulator_disconnected(self):
+        """Callback chamado quando o emulador é desconectado."""
+        if not hasattr(self, 'root') or not self.root.winfo_exists():
+            return  # Janela foi fechada
+            
+        # Executa operações na thread do Tkinter
+        self.root.after(0, self._handle_emulator_disconnected)
+    
+    def _handle_emulator_disconnected(self):
+        """Manipula o evento de desconexão do emulador na thread da interface gráfica."""
+        self.log("📱❌ Emulador desconectado!")
+        self.status_label.config(text="Desconectado", foreground="red")
+        self.device_label.config(text="Dispositivo: Nenhum")
+        
+        # Desabilita os botões
+        self.test_button.config(state="disabled")
+        self.masked_test_button.config(state="disabled")
+        
+        # Toca som de alerta
+        try:
+            winsound.PlaySound("SystemExclamation", winsound.SND_ASYNC)
+        except Exception as sound_error:
+            self.log(f"Erro ao reproduzir som: {sound_error}")
+        
+        # Mostra popup informando que o emulador foi fechado
+        try:
+            # Verifica se o popup já está sendo exibido
+            if not self.emulator_connection_lost:
+                self.root.after(100, lambda: messagebox.showwarning("Emulador Fechado", 
+                                                            "Emulador foi fechado ou desconectado!\n" +
+                                                            "Reabra o emulador para continuar."))
+        except Exception as e:
+            self.log(f"Erro ao mostrar popup: {e}")
+            
+        # Define flag de perda de conexão
+        self.emulator_connection_lost = True
     
     def run_template_test(self):
         """Executa o teste de template do módulo template.py"""
@@ -454,6 +568,100 @@ def start_screenshot_capture(fps, device, username=None):
     return capture_thread
 
 # --- Função Principal ---
+def show_emulator_closed_message():
+    """Mostra uma mensagem amigável com GIF animado quando o emulador está fechado e toca um som."""
+    # Toca o som de alerta antes de mostrar a mensagem
+    try:
+        winsound.PlaySound("SystemExclamation", winsound.SND_ASYNC)
+    except Exception as sound_error:
+        print(f"Erro ao reproduzir som: {sound_error}")
+    
+    # Cria uma janela customizada para mostrar o GIF e a mensagem
+    root = tk.Tk()
+    root.title("GÊNIO")
+    root.geometry("400x320")
+    root.resizable(False, False)
+    
+    # Centraliza a janela na tela
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    x = (screen_width - 400) // 2
+    y = (screen_height - 320) // 2
+    root.geometry(f"400x320+{x}+{y}")
+    
+    # Configura o estilo
+    root.configure(bg="#f0f0f0")
+    style = ttk.Style()
+    style.configure("TButton", font=("Helvetica", 12))
+    style.configure("TLabel", font=("Helvetica", 14), background="#f0f0f0")
+    
+    # Frame principal
+    main_frame = ttk.Frame(root, padding=10)
+    main_frame.pack(fill=tk.BOTH, expand=True)
+    
+    # Carrega o GIF (verificamos se o arquivo existe)
+    gif_path = os.path.join(project_root, "china.gif")
+    if os.path.exists(gif_path):
+        # Cria um objeto para armazenar os frames do GIF
+        frames = []
+        try:
+            # Tenta carregar o GIF
+            gif = Image.open(gif_path)
+            # Extrai todos os frames
+            try:
+                while True:
+                    frames.append(ImageTk.PhotoImage(gif.copy()))
+                    gif.seek(len(frames)) # Vai para o próximo frame
+            except EOFError:
+                pass # Fim dos frames
+                
+            # Cria um label para exibir o GIF
+            gif_label = ttk.Label(main_frame)
+            gif_label.pack(pady=10)
+            
+            # Função para animar o GIF
+            def update_frame(idx):
+                frame = frames[idx]
+                gif_label.configure(image=frame)
+                root.after(100, update_frame, (idx + 1) % len(frames))
+            
+            # Inicia a animação
+            if frames:
+                root.after(0, update_frame, 0)
+                
+        except Exception as e:
+            print(f"Erro ao carregar o GIF: {e}")
+            # Usa um texto simples se o GIF não puder ser carregado
+            ttk.Label(main_frame, text="[😱 GIF Indisponível]")\
+                .pack(pady=20)
+    else:
+        # Se o arquivo não existir, mostra um texto alternativo
+        ttk.Label(main_frame, text="[😱 GIF Indisponível]")\
+            .pack(pady=20)
+    
+    # Adiciona a mensagem
+    ttk.Label(main_frame, text="Teu emulador ta fechado pai!", 
+               font=("Helvetica", 14, "bold"))\
+        .pack(pady=10)
+    ttk.Label(main_frame, text="Abra o emulador antes de iniciar o bot.")\
+        .pack(pady=5)
+    
+    # Botão de fechar
+    ttk.Button(main_frame, text="Entendi, vou abrir!", command=root.destroy)\
+        .pack(pady=15)
+    
+    # Configura a janela para se fechar ao pressionar Esc ou Enter
+    root.bind("<Escape>", lambda event: root.destroy())
+    root.bind("<Return>", lambda event: root.destroy())
+    
+    # Coloca a janela em primeiro plano
+    root.attributes("-topmost", True)
+    root.update()
+    root.attributes("-topmost", False)
+    
+    # Inicia o loop principal
+    root.mainloop()
+
 def main():
     global capture_thread, stop_capture_thread
     
@@ -478,13 +686,17 @@ def main():
         # 1. Inicializa e conecta o ADBManager
         if not adb_manager.connect_first_device():
             print("🚨 Falha crítica ao conectar ao dispositivo. Encerrando.")
-            sys.exit(1)  # Encerra o script se não conectar
+            # Mostra o popup com mensagem amigável antes de encerrar
+            show_emulator_closed_message()
+            return  # Usamos return em vez de sys.exit para um encerramento mais limpo
 
         # 2. Obtém o dispositivo conectado
         connected_device = adb_manager.get_device()
         if not connected_device:
             print("🚨 Falha crítica: Conexão OK, mas sem objeto de dispositivo. Encerrando.")
-            sys.exit(1)
+            # Mostra o popup com mensagem amigável antes de encerrar
+            show_emulator_closed_message()
+            return  # Usamos return em vez de sys.exit para um encerramento mais limpo
 
         # ADBManager já registra a conexão bem-sucedida, não precisamos duplicar
 
@@ -504,6 +716,11 @@ def main():
         # 4. Cria a janela principal da interface gráfica
         root = tk.Tk()
         app = HayDayTestApp(root, user_data)
+
+        # Configura o monitoramento proativo do ADB
+        setup_adb_monitor_in_app(app)        
+        # Configura o monitoramento proativo do ADB
+        setup_adb_monitor_in_app(app)
         
         # 5. Inicializa o gerenciador de estados
         if initialize_state_manager():
@@ -552,6 +769,9 @@ def on_closing(root):
     global stop_capture_thread, state_manager
     
     print("💻🔒 MAIN: Aplicativo está sendo fechado...")
+
+    # Para o monitoramento de conexão ADB
+    cleanup_adb_monitor_on_exit()
     
     # Para a thread de captura
     stop_capture_thread = True

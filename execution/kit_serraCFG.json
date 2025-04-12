@@ -1,0 +1,10 @@
+{
+    "nome": "Kit Serra",
+    "descricao": "Automação de operações com serra no HayDay",
+    "versao": "1.0",
+    "configuracoes": {
+        "tempo_entre_acoes": 1.5,
+        "tentativas_maximas": 3
+    },
+    "templates": []
+}

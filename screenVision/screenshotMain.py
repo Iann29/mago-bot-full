@@ -8,9 +8,12 @@ import time
 import os 
 import json # Para carregar o CFG
 from datetime import datetime 
-from typing import Optional, Dict, Any, Union
+from typing import Optional, Dict, Any, Union, Callable
 import numpy as np 
 import cv2 
+import threading
+import queue
+import concurrent.futures
 
 # Importa o transmissor de screenshots
 from screenVision.transmitter import transmitter
@@ -105,8 +108,69 @@ class Screenshotter:
               print(f"❌ Debug: Erro ao salvar screenshot em {save_path}: {e}")
 
 
+    def _run_with_timeout(self, func: Callable, timeout: int = 5, *args, **kwargs):
+        """Executa uma função com um timeout especificado.
+        
+        Args:
+            func: A função a ser executada
+            timeout: Tempo limite em segundos
+            *args, **kwargs: Argumentos para a função
+            
+        Returns:
+            O resultado da função ou None se o timeout for atingido
+        """
+        result_queue = queue.Queue()
+        
+        def worker():
+            try:
+                result = func(*args, **kwargs)
+                result_queue.put((True, result))
+            except Exception as e:
+                result_queue.put((False, e))
+                
+        # Inicia a thread
+        thread = threading.Thread(target=worker)
+        thread.daemon = True  # Thread daemon para que não bloqueie o encerramento do programa
+        thread.start()
+        
+        try:
+            # Aguarda o resultado com timeout
+            success, result = result_queue.get(timeout=timeout)
+            if success:
+                return result
+            else:
+                print(f"❌ Erro na operação ADB: {result}")
+                return None
+        except queue.Empty:
+            print(f"⏱️ Timeout atingido após {timeout} segundos")
+            # A thread pode continuar rodando, mas como é daemon, não impedirá o programa de encerrar
+            return None
+        
+    def _take_screenshot_method1(self, device_to_use):
+        """Tenta tirar screenshot usando o método primário (device.screenshot())."""
+        try:
+            pil_image = device_to_use.screenshot()
+            if pil_image is None:
+                raise AdbError("device.screenshot() retornou None")
+            return pil_image
+        except Exception as e:
+            # print(f"Erro no Método 1 (device.screenshot): {e}") # Log verboso removido
+            return None
+        
+    def _take_screenshot_method2(self, device_to_use):
+        """Tenta tirar screenshot usando o método secundário (shell screencap)."""
+        try:
+            png_data = device_to_use.shell("screencap -p", encoding=None)
+            if not png_data:
+                print("Erro: screencap retornou dados vazios.")
+                return None
+            return Image.open(io.BytesIO(png_data))
+        except Exception as e:
+            print(f"Erro no Método 2 (shell screencap): {e}")
+            return None
+
     def _take_screenshot_adb(self, use_pil: bool) -> Optional[Image.Image | object]:
-        """Tira screenshot usando ADB."""
+        """Tira screenshot usando ADB com timeout para evitar bloqueios."""
         # Se não tiver um dispositivo, tenta obter do adb_manager
         device_to_use = self.device
         
@@ -123,30 +187,12 @@ class Screenshotter:
                 print("❌ Screenshotter: ADBManager conectado, mas não retornou um objeto de dispositivo válido")
                 return None
 
-        pil_image: Optional[Image.Image] = None
-        try:
-            # Método 1 (adbutils direto)
-            pil_image = device_to_use.screenshot()
-            if pil_image is None: raise AdbError("device.screenshot() retornou None")
-            
-        except AdbError as e1:
-            # print(f"Erro no Método 1 (device.screenshot): {e1}. Tentando Método 2...") # Log verboso removido
-            try:
-                # Método 2 (Fallback via shell screencap)
-                png_data = device_to_use.shell("screencap -p", encoding=None)
-                if not png_data: 
-                    print("Erro: screencap retornou dados vazios.")
-                    return None
-                pil_image = Image.open(io.BytesIO(png_data)) 
-            except AdbError as e2:
-                print(f"Erro ADB no Método 2 (shell screencap): {e2}") 
-                return None
-            except Exception as e_pil:
-                 print(f"Erro ao processar imagem do screencap: {e_pil}")
-                 return None
-        except Exception as e_gen:
-             print(f"Erro inesperado ao tirar screenshot ADB: {e_gen}")
-             return None
+        # Tenta o método 1 com timeout
+        pil_image = self._run_with_timeout(self._take_screenshot_method1, 5, device_to_use)
+        
+        # Se falhar, tenta o método 2 com timeout
+        if pil_image is None:
+            pil_image = self._run_with_timeout(self._take_screenshot_method2, 5, device_to_use)
 
         # Se temos uma imagem PIL, converte se necessário e retorna
         if pil_image:
