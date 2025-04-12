@@ -19,23 +19,3 @@ ENV/
 *.swp
 *.swo
 
-# Debug output directories
-debug_output/
-screenshots/
-
-# Log files
-*.log
-
-# OS specific files
-.DS_Store
-Thumbs.db
-
-# Environment variables and secrets
-.env
-.env.*
-!.env.example
-
-# Arquivos com informações sensíveis
-auth/password_hashes.py
-auth/.remembered_credentials
-auth/.remembered_user
