@@ -7,12 +7,19 @@ import sys
 import os
 from typing import Optional, Dict, Any
 
+# Import para o novo sistema de logs
+from utils.logger import get_logger
+
 # Adiciona a raiz do projeto ao PYTHONPATH para garantir importações corretas
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if project_root not in sys.path:
     sys.path.append(project_root)
+    
+# Configuração do logger para este módulo
+logger = get_logger('app')
 
-from adb_monitor import setup_adb_monitor_in_app, cleanup_adb_monitor_on_exit
+# Agora usamos diretamente o ADBManager em vez do adb_monitor
+# Esta abordagem elimina a duplicação de código
 from thread_terminator import wait_for_thread_termination, terminate_all_daemon_threads
 from auth.login_ui import start_login_window
 from ADBmanager import adb_manager
@@ -38,35 +45,35 @@ def initialize_app():
 
 def cleanup_app():
     """Limpa recursos e encerra threads antes de fechar a aplicação."""
-    print("💻🔒 MAIN: Aplicativo está sendo fechado...")
+    logger.info("Aplicativo está sendo fechado...")
     
     # Limpa o monitor ADB
     cleanup_adb_monitor_on_exit()
-    print("💻⏹️ MAIN: Monitoramento de conexão ADB encerrado.")
+    logger.debug("Monitoramento de conexão ADB encerrado.")
     
     # Para o monitoramento de estados
-    print("💻⏹️ MAIN: Parando monitoramento de estados...")
+    logger.debug("Parando monitoramento de estados...")
     stop_state_monitoring()
     
     # Para a interface gráfica (se houver)
-    print("💻🚫 MAIN: Interface encerrada.")
+    logger.debug("Interface encerrada.")
     
     # Sinaliza para a thread de captura parar
-    print("💻⛔ MAIN: Sinalizando para thread de captura parar...")
+    logger.debug("Sinalizando para thread de captura parar...")
     stop_screenshot_capture()
     
     # Para o monitoramento de estados (redundante mas seguro)
-    print("💻⏹️ MAIN: Parando monitoramento de estados...")
+    logger.debug("Parando monitoramento de estados...")
     
     # Aguarda a thread de captura encerrar
-    print("💻⏸️ MAIN: Aguardando a thread de captura encerrar...")
+    logger.debug("Aguardando a thread de captura encerrar...")
     if capture_thread and capture_thread.is_alive():
         wait_for_thread_termination(capture_thread, timeout=2.0)
     
     # Finaliza threads daemon remanescentes
     terminate_all_daemon_threads()
     
-    print("💻✨ MAIN: Programa encerrado.")
+    logger.info("Programa encerrado.")
 
 def start_app_with_auth():
     """
@@ -76,19 +83,19 @@ def start_app_with_auth():
         int: Código de saída da aplicação (0 para sucesso)
     """
     # Mostra janela de login e aguarda autenticação
-    print("🌟--- Iniciando HayDay Test Tool ---🌟")
-    print("🔐 Iniciando autenticação...")
+    logger.info("Iniciando HayDay Test Tool")
+    logger.terminal("Iniciando autenticação...")
     
     # Invoca o sistema de autenticação
     user_data = start_login_window()
     
     # Se autenticação falhou, encerra
     if not user_data:
-        print("❌ Autenticação falhou. Encerrando aplicação.")
+        logger.terminal("Autenticação falhou. Encerrando aplicação.")
         return 1
     
     # Autenticação bem-sucedida, continua com a aplicação
-    print(f"✅ Usuário {user_data['username']} autenticado com sucesso!")
+    logger.terminal(f"Usuário {user_data['username']} autenticado com sucesso!")
     
     # Inicia a aplicação principal
     return run_main_app(user_data)
@@ -104,7 +111,7 @@ def run_main_app(user_data: Dict[str, Any]) -> int:
         int: Código de saída da aplicação (0 para sucesso)
     """
     # Exibe configurações
-    print(f"⚙️ Configurações: FPS={TARGET_FPS} (do screenshotCFG.json)")
+    logger.terminal(f"Configurações: FPS={TARGET_FPS} (do screenshotCFG.json)")
     
     # Exibe mensagem se o emulador estiver fechado
     retry_count = 0
@@ -121,7 +128,7 @@ def run_main_app(user_data: Dict[str, Any]) -> int:
                     try:
                         # Identifica o usuário para transmissão
                         username = user_data.get('html_id', user_data.get('username', ''))
-                        print(f"💻📁 Identificador de tela para transmissão: {username}")
+                        logger.terminal(f"Identificador de tela para transmissão: {username}")
                         
                         # Inicia a thread de captura com username
                         start_screenshot_capture(TARGET_FPS, device, username)
@@ -134,7 +141,7 @@ def run_main_app(user_data: Dict[str, Any]) -> int:
                         setup_adb_monitor_in_app(app)
                         
                         # Configura o callback de fechamento
-                        root.protocol("WM_DELETE_WINDOW", lambda: on_closing(root))
+                        root.protocol("WM_DELETE_WINDOW", lambda: on_closing(root, app))
                         
                         # Inicia o loop principal da interface
                         root.mainloop()
@@ -168,14 +175,102 @@ def run_main_app(user_data: Dict[str, Any]) -> int:
     # Não deveria chegar aqui, mas por segurança
     return 1
 
-def on_closing(root: tk.Tk) -> None:
+def on_closing(root: tk.Tk, app=None) -> None:
     """
     Trata o fechamento da janela principal.
     
     Args:
         root: Objeto raiz do Tkinter
+        app: Instância da aplicação HayDayTestApp
     """
     # Pergunta ao usuário se deseja realmente sair
     if tk.messagebox.askokcancel("Sair", "Deseja realmente sair da aplicação?"):
+        # Notifica a aplicação para limpar recursos da UI
+        if app is not None:
+            try:
+                app.on_close()
+            except Exception as e:
+                print(f"Erro ao fechar a aplicação: {e}")
+        
         # Destroi a janela para encerrar o mainloop
         root.destroy()
+
+
+# --- Funções de substituição do antigo adb_monitor.py ---
+# Estas funções usam diretamente o ADBManager para evitar duplicação de código
+
+def setup_adb_monitor_in_app(app):
+    """
+    Configura a verificação de status ADB para o aplicativo HayDayTestApp.
+    
+    Args:
+        app: Instância da classe HayDayTestApp
+    """
+    # Adiciona atributo para rastrear status do emulador se não existir
+    if not hasattr(app, 'emulator_connection_lost'):
+        app.emulator_connection_lost = False
+    
+    # Faz uma verificação inicial do status
+    # O resto das verificações será feito via botão na interface
+    app.check_emulator_status()
+
+
+def cleanup_adb_monitor_on_exit():
+    """
+    Limpa recursos relacionados ao ADB ao encerrar a aplicação.
+    """
+    # A thread de monitoramento não existe mais, então não precisamos pará-la
+    # Esse método está mantido por compatibilidade com o código existente
+    print("ADB: Liberando recursos")
+
+
+def on_emulator_connected(app, device_serial):
+    """
+    Callback chamado quando o emulador é conectado/reconectado.
+    """
+    if not hasattr(app, 'root') or not app.root.winfo_exists():
+        return  # Janela foi fechada
+        
+    # Executa operações na thread do Tkinter
+    app.root.after(0, lambda: handle_emulator_connected(app, device_serial))
+
+
+def handle_emulator_connected(app, device_serial):
+    """
+    Manipula o evento de conexão do emulador na thread da interface gráfica.
+    """
+    try:
+        # Atualiza a interface para refletir a conexão
+        app.emulator_connection_lost = False
+        app.status_label.config(text="Conectado ✓", foreground="green")
+        app.device_label.config(text=f"Dispositivo: {device_serial}")
+        
+        # Obtém a referência ao dispositivo
+        app.connected_device = adb_manager.get_device()
+    except Exception as e:
+        print(f"Erro ao processar conexão do emulador: {e}")
+
+
+def on_emulator_disconnected(app):
+    """
+    Callback chamado quando o emulador é desconectado.
+    """
+    # Agenda para execução na thread da interface
+    if hasattr(app, 'root') and app.root.winfo_exists():
+        app.root.after(0, lambda: handle_emulator_disconnected(app))
+
+
+def handle_emulator_disconnected(app):
+    """
+    Manipula o evento de desconexão do emulador na thread da interface gráfica.
+    """
+    try:
+        import winsound
+        winsound.PlaySound("SystemExclamation", winsound.SND_ASYNC)
+    except Exception:
+        pass  # Ignora erros de som
+        
+    app.emulator_connection_lost = True
+    app.connected_device = None
+    app.status_label.config(text="Desconectado ✗", foreground="red")
+    app.device_label.config(text="Dispositivo: Nenhum")

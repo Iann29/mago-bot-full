@@ -29,14 +29,60 @@ class HayDayTestApp:
             user_data: Dados do usuário autenticado
         """
         self.root = root
-        self.root.title("HayDay Test Tool")
-        self.root.geometry("600x700")
+        self.root.title("@magodohayday")
+        self.root.geometry("800x700")
         self.root.resizable(True, True)
+        
+        # Configurar tema escuro com cores nativas
+        bg_color = "#2d2d2d"  # Cor de fundo escura
+        fg_color = "#ffffff"  # Cor de texto clara
+        accent_color = "#007acc"  # Cor de destaque (azul)
+        frame_bg = "#333333"  # Cor de fundo para frames
+        entry_bg = "#1e1e1e"  # Cor de fundo para entradas de texto
+        
+        # Configura cores para a janela principal
+        self.root.configure(bg=bg_color)
+        
+        # Configura estilo para os widgets
+        style = ttk.Style()
+        
+        # Configurações gerais
+        style.configure(".", background=bg_color, foreground=fg_color)
+        style.configure("TFrame", background=bg_color)
+        style.configure("TLabel", background=bg_color, foreground=fg_color)
+        
+        # Botões padronizados com o mesmo estilo do botão de destaque
+        style.configure("TButton", background="#4cc9f0", foreground="#000000")
+        style.map("TButton", 
+                  background=[("active", "#80ed99"), ("pressed", "#57cc99")],
+                  foreground=[("active", "#000000")])
+        
+        # LabelFrame com bordas mais suaves e cores escuras
+        style.configure("TLabelframe", background=bg_color)
+        style.configure("TLabelframe.Label", background=bg_color, foreground=accent_color, font=("Segoe UI", 9, "bold"))
+        
+        # Botão destacado com cores vibrantes
+        style.configure("Accent.TButton", background="#4cc9f0", foreground="#000000")
+        style.map("Accent.TButton", 
+                  background=[("active", "#80ed99"), ("pressed", "#57cc99")],
+                  foreground=[("active", "#000000")])
+        
+        # Configura cores para a área de texto do log
+        self.log_colors = {
+            "bg": entry_bg,
+            "fg": fg_color,
+            "select_bg": accent_color,
+            "select_fg": "white"
+        }
         
         # Variáveis de controle
         self.adb_manager_instance = None
         self.connected_device = None
         self.emulator_connection_lost = False
+        
+        # Flag para controlar se a interface está ativa
+        self.ui_active = True
+        self.after_ids = []  # Lista para armazenar os IDs de chamadas after()
         
         # Dados do usuário autenticado
         self.user_data = user_data
@@ -62,28 +108,56 @@ class HayDayTestApp:
         main_frame.pack(fill=tk.BOTH, expand=True)
         
         # Título com informação do usuário
-        title_text = "HayDay Test Tool"
+        title_text = "@magodohayday"
         if self.html_id:
             # Extrai nome do usuário do html_id (exemplo: "screen-ian" -> "Ian")
             user_name = self.html_id.replace("screen-", "").capitalize()
             title_text += f" - {user_name}"
             
-        title_label = ttk.Label(main_frame, text=title_text, font=("Helvetica", 16, "bold"))
-        title_label.pack(pady=10)
+        # Header com título e logo
+        header_frame = ttk.Frame(main_frame)
+        header_frame.pack(fill=tk.X, pady=(10, 20))
         
-        # Frame de status
-        status_frame = ttk.LabelFrame(main_frame, text="Status da Conexão", padding=10)
-        status_frame.pack(fill=tk.X, pady=10)
+        # Título estilizado
+        title_label = ttk.Label(header_frame, text=title_text, font=("Segoe UI", 20, "bold"))
+        title_label.pack(pady=5)
         
-        self.status_label = ttk.Label(status_frame, text="Não conectado")
-        self.status_label.pack(pady=5)
+        # Subtítulo
+        subtitle = ttk.Label(header_frame, text="Bot de Automação", font=("Segoe UI", 12))
+        subtitle.pack(pady=2)
         
-        self.device_label = ttk.Label(status_frame, text="Dispositivo: Nenhum")
-        self.device_label.pack(pady=5)
+        # Frame de status com visual melhorado
+        status_frame = ttk.LabelFrame(main_frame, text="Status da Conexão", padding=15)
+        status_frame.pack(fill=tk.X, padx=20, pady=10)
         
-        # Frame de captura
-        capture_frame = ttk.LabelFrame(main_frame, text="Status da Captura", padding=10)
-        capture_frame.pack(fill=tk.X, pady=10)
+        # Layout de status com botão de verificação
+        status_content_frame = ttk.Frame(status_frame)
+        status_content_frame.pack(fill=tk.X, expand=True)
+        
+        # Coluna esquerda: Labels de status
+        status_labels_frame = ttk.Frame(status_content_frame)
+        status_labels_frame.pack(side=tk.LEFT, fill=tk.Y)
+        
+        self.status_label = ttk.Label(status_labels_frame, text="Não conectado")
+        self.status_label.pack(pady=5, anchor=tk.W)
+        
+        self.device_label = ttk.Label(status_labels_frame, text="Dispositivo: Nenhum")
+        self.device_label.pack(pady=5, anchor=tk.W)
+        
+        # Coluna direita: Botão de verificação
+        status_button_frame = ttk.Frame(status_content_frame)
+        status_button_frame.pack(side=tk.RIGHT)
+        
+        self.check_status_button = ttk.Button(
+            status_button_frame, 
+            text="Verificar Status", 
+            command=self.check_emulator_status
+        )
+        self.check_status_button.pack(padx=5, pady=10)
+        
+        # Frame de captura com visual melhorado
+        capture_frame = ttk.LabelFrame(main_frame, text="Status da Captura", padding=15)
+        capture_frame.pack(fill=tk.X, padx=20, pady=10)
         
         self.capture_status_label = ttk.Label(capture_frame, text="Thread de captura: Inativa")
         self.capture_status_label.pack(side=tk.LEFT, padx=5)
@@ -91,9 +165,9 @@ class HayDayTestApp:
         self.capture_fps_label = ttk.Label(capture_frame, text="FPS: --")
         self.capture_fps_label.pack(side=tk.RIGHT, padx=5)
         
-        # Frame de estado do jogo
-        state_frame = ttk.LabelFrame(main_frame, text="Estado do Jogo", padding=10)
-        state_frame.pack(fill=tk.X, pady=10)
+        # Frame de estado do jogo com visual melhorado
+        state_frame = ttk.LabelFrame(main_frame, text="Estado do Jogo", padding=15)
+        state_frame.pack(fill=tk.X, padx=20, pady=10)
         
         self.state_label = ttk.Label(state_frame, text="Estado atual: Desconhecido")
         self.state_label.pack(side=tk.LEFT, padx=5)
@@ -101,46 +175,47 @@ class HayDayTestApp:
         self.state_time_label = ttk.Label(state_frame, text="Tempo no estado: 0s")
         self.state_time_label.pack(side=tk.RIGHT, padx=5)
         
-        # Frame de status de transmissão
-        transmission_frame = ttk.LabelFrame(main_frame, text="Status da Transmissão", padding=10)
-        transmission_frame.pack(fill=tk.X, pady=10)
+        # Frame de status de transmissão com visual melhorado
+        transmission_frame = ttk.LabelFrame(main_frame, text="Status da Transmissão", padding=15)
+        transmission_frame.pack(fill=tk.X, padx=20, pady=10)
         
         self.transmission_status_label = ttk.Label(transmission_frame, text="Transmissão: Inativa", foreground="gray")
         self.transmission_status_label.pack(side=tk.LEFT, padx=5)
         
-        # Frame de ações/testes
-        actions_frame = ttk.LabelFrame(main_frame, text="Ações e Testes", padding=10)
-        actions_frame.pack(fill=tk.X, pady=10)
+        # Frame de ações/testes com visual melhorado
+        actions_frame = ttk.LabelFrame(main_frame, text="Ações e Testes", padding=15)
+        actions_frame.pack(fill=tk.X, padx=20, pady=10)
         
         # Botões de teste
-        test_button = ttk.Button(actions_frame, text="Executar Teste de Template", command=self.run_template_test)
-        test_button.pack(side=tk.LEFT, padx=5, pady=5)
+        # Botões estilizados para ações
+        buttons_container = ttk.Frame(actions_frame)
+        buttons_container.pack(fill=tk.X, expand=True, padx=5, pady=5)
         
-        masked_test_button = ttk.Button(actions_frame, text="Teste com Máscara", command=self.run_masked_test)
-        masked_test_button.pack(side=tk.LEFT, padx=5, pady=5)
+        test_button = ttk.Button(buttons_container, text="Executar Teste de Template", command=self.run_template_test)
+        test_button.pack(side=tk.LEFT, padx=10, pady=10, expand=True, fill=tk.X)
         
-        # Área de log
-        log_frame = ttk.LabelFrame(main_frame, text="Log de Eventos", padding=10)
-        log_frame.pack(fill=tk.BOTH, expand=True, pady=10)
+        masked_test_button = ttk.Button(buttons_container, text="Teste com Máscara", command=self.run_masked_test)
+        masked_test_button.pack(side=tk.LEFT, padx=10, pady=10, expand=True, fill=tk.X)
         
-        self.log_text = tk.Text(log_frame, width=60, height=10, wrap=tk.WORD)
-        self.log_text.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
-        
-        scrollbar = ttk.Scrollbar(log_frame, orient=tk.VERTICAL, command=self.log_text.yview)
-        scrollbar.pack(fill=tk.Y, side=tk.RIGHT)
-        self.log_text.config(yscrollcommand=scrollbar.set)
+        # Espaçador para manter o layout equilibrado
+        spacer_frame = ttk.Frame(main_frame, height=20)
+        spacer_frame.pack(fill=tk.X, padx=20, pady=10)
         
         # Inicia o timer para atualizar a UI
-        self.update_capture_status()
-        self.check_transmission_timeout()
+        self.schedule_ui_update(self.update_capture_status, 1000)  # Atualiza a cada 1s
+        self.schedule_ui_update(self.check_transmission_timeout, 2000)  # Verifica a cada 2s
         
         # Configura o callback no transmissor
         transmitter.set_transmission_callback(self.update_transmission_status)
+        
+        # Registra callback para mudanças de estado
+        from cerebro.state import register_state_callback
+        register_state_callback(self.on_state_change)
+        self.log("🔔✅ Callback de estado registrado na UI")
     
     def log(self, message):
-        """Adiciona uma mensagem à área de log"""
-        self.log_text.insert(tk.END, f"{message}\n")
-        self.log_text.see(tk.END)  # Rola para o final
+        """Registra mensagem no console em vez da interface"""
+        print(message)
     
     def initialize_adb(self):
         """Inicializa e conecta ao ADB"""
@@ -252,20 +327,35 @@ class HayDayTestApp:
             self.log(f"❌ ERRO no teste com máscara: {e}")
             messagebox.showerror("Erro no Teste", f"Ocorreu um erro: {e}")
     
+    def schedule_ui_update(self, callback, delay_ms):
+        """Agenda uma atualização de UI com segurança"""
+        if self.ui_active:
+            after_id = self.root.after(delay_ms, callback)
+            self.after_ids.append(after_id)
+            return after_id
+        return None
+        
     def update_capture_status(self):
         """Atualiza o status da captura na interface a cada segundo"""
-        from cerebro.capture import capture_thread, stop_capture_thread
-        
-        if capture_thread and capture_thread.is_alive() and not stop_capture_thread:
-            self.capture_status_label.config(text="Thread de captura: Ativa ✓", foreground="green")
-            queue_size = screenshot_queue.qsize()
-            self.capture_fps_label.config(text=f"Fila: {queue_size}")
-        else:
-            self.capture_status_label.config(text="Thread de captura: Inativa ✗", foreground="red")
-            self.capture_fps_label.config(text="Fila: 0")
+        if not self.ui_active:
+            return
+            
+        try:
+            from cerebro.capture import capture_thread, stop_capture_thread
+            
+            if capture_thread and capture_thread.is_alive() and not stop_capture_thread:
+                self.capture_status_label.config(text="Thread de captura: Ativa ✓", foreground="green")
+                queue_size = screenshot_queue.qsize()
+                self.capture_fps_label.config(text=f"Fila: {queue_size}")
+            else:
+                self.capture_status_label.config(text="Thread de captura: Inativa ✗", foreground="red")
+                self.capture_fps_label.config(text="Fila: 0")
+        except Exception as e:
+            # Ignora erros se a interface já estiver sendo destruída
+            pass
             
         # Reagenda para 1 segundo depois
-        self.root.after(1000, self.update_capture_status)
+        self.schedule_ui_update(self.update_capture_status, 1000)
     
     def on_state_change(self, previous_state, new_state):
         """Callback chamado quando o estado do jogo muda"""
@@ -274,30 +364,114 @@ class HayDayTestApp:
     
     def _update_state_ui(self, previous_state, new_state):
         """Atualiza a UI com a mudança de estado"""
+        # Destacar visualmente a mudança de estado com formatação especial
         self.state_label.config(text=f"Estado atual: {new_state}")
         self.state_time_label.config(text="Tempo no estado: 0s")
         
-        # Log da mudança
-        self.log(f"Estado alterado: {previous_state} -> {new_state}")
+        # Registra a mudança no console
+        print(f"🔄 Estado alterado: {previous_state} → {new_state}")
     
     def update_transmission_status(self):
         """Atualiza o status da transmissão na GUI - chamado pelo transmitter"""
         # Ativado via callback com lock de thread
-        self.root.after(0, self._update_transmission_ui)
+        if self.ui_active:
+            try:
+                self.root.after(0, self._update_transmission_ui)
+            except Exception:
+                # Ignora erros se a interface já estiver sendo destruída
+                pass
     
     def _update_transmission_ui(self):
         """Atualiza a UI da transmissão (thread-safe)"""
-        self.transmission_status_label.config(text="Transmissão: Ativa ✓", foreground="green")
-        self.transmission_last_active = time.time()
+        if not self.ui_active:
+            return
+            
+        try:
+            self.transmission_status_label.config(text="Transmissão: Ativa ✓", foreground="green")
+            self.transmission_last_active = time.time()
+        except Exception:
+            # Ignora erros se a interface já estiver sendo destruída
+            pass
     
     def check_transmission_timeout(self):
         """Verifica se a transmissão está inativa há mais de 2 segundos"""
-        if hasattr(self, 'transmission_last_active'):
-            if time.time() - self.transmission_last_active > 2.0:
-                self.transmission_status_label.config(text="Transmissão: Inativa", foreground="gray")
+        if not self.ui_active:
+            return
+            
+        try:
+            if hasattr(self, 'transmission_last_active'):
+                if time.time() - self.transmission_last_active > 2.0:
+                    self.transmission_status_label.config(text="Transmissão: Inativa", foreground="gray")
+        except Exception:
+            # Ignora erros se a interface já estiver sendo destruída
+            pass
         
         # Reagenda verificação
-        self.root.after(2000, self.check_transmission_timeout)
+        self.schedule_ui_update(self.check_transmission_timeout, 2000)
+        
+    def check_emulator_status(self):
+        """Verifica o status do emulador quando o botão é clicado."""
+        self.check_status_button.config(text="Verificando...", state="disabled")
+        self.root.update_idletasks()  # Atualiza a UI imediatamente para mostrar o botão desabilitado
+        
+        try:
+            # Verifica se o emulador está conectado
+            is_connected = adb_manager.is_connected()
+            
+            if is_connected:
+                device_serial = adb_manager.get_target_serial()
+                self.status_label.config(text="Conectado ✓", foreground="green")
+                self.device_label.config(text=f"Dispositivo: {device_serial}")
+                
+                # Atualiza o atributo connected_device
+                self.connected_device = adb_manager.get_device()
+                
+                # Se estava marcado como desconectado antes, notifica reconexão
+                if self.emulator_connection_lost:
+                    self.emulator_connection_lost = False
+                    self.log("📱✅ Emulador reconectado!")
+                    try:
+                        winsound.PlaySound("SystemAsterisk", winsound.SND_ASYNC)
+                    except Exception:
+                        pass
+            else:
+                self.status_label.config(text="Desconectado ✗", foreground="red")
+                self.device_label.config(text="Dispositivo: Nenhum")
+                self.connected_device = None
+                
+                # Se não estava marcado como desconectado antes, notifica desconexão
+                if not self.emulator_connection_lost:
+                    self.emulator_connection_lost = True
+                    self.log("📱❌ Emulador desconectado!")
+                    try:
+                        winsound.PlaySound("SystemExclamation", winsound.SND_ASYNC)
+                    except Exception:
+                        pass
+            
+            # Exibe um toast de resultado
+            status_text = "conectado" if is_connected else "desconectado"
+            self.log(f"🔍 Verificação de status: Emulador {status_text}")
+        except Exception as e:
+            self.log(f"❌ Erro ao verificar status: {e}")
+            self.status_label.config(text="Erro ✗", foreground="red")
+        finally:
+            # Reativa o botão
+            self.check_status_button.config(text="Verificar Status", state="normal")
+    
+    def on_close(self):
+        """Chamado quando a interface está sendo fechada"""
+        # Marca a UI como inativa para evitar atualizações futuras
+        self.ui_active = False
+        
+        # Cancela todos os agendamentos pendentes
+        for after_id in self.after_ids:
+            try:
+                self.root.after_cancel(after_id)
+            except Exception:
+                pass
+        
+        # Limpa a lista de IDs
+        self.after_ids.clear()
 
 def show_emulator_closed_message():
     """

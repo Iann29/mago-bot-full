@@ -7,6 +7,12 @@ import threading
 import queue
 from typing import Optional, List, Any, Callable
 
+# Import do sistema de logs
+from utils.logger import get_logger
+
+# Logger para este módulo
+logger = get_logger('adb')
+
 class ADBManager:
     """
     Gerencia a conexão com o servidor ADB e fornece acesso ao primeiro dispositivo 'device' encontrado.
@@ -31,7 +37,7 @@ class ADBManager:
         self._disconnect_callbacks: List[Callable] = []
         self._monitor_interval: float = 3.0  # Verificar a cada 3 segundos
         
-        print("🤖 ADBManager: Instância criada.")
+        logger.info("ADBManager: Instância criada.")
 
     def _run_with_timeout(self, func: Callable, timeout: int = 5, *args, **kwargs) -> tuple[bool, Any]:
         """Executa uma função com timeout.
@@ -213,27 +219,26 @@ class ADBManager:
             self._disconnect_callbacks.append(callback)
     
     def start_connection_monitoring(self) -> None:
-        """Inicia o monitoramento da conexão ADB em uma thread separada."""
-        if self._monitor_thread is not None and self._monitor_thread.is_alive():
-            print("🔔⚠️ ADB Monitor: Monitoramento já está ativo.")
-            return
-            
-        self._stop_monitor = False
-        self._monitor_thread = threading.Thread(target=self._connection_monitor_worker, daemon=True)
-        self._monitor_thread.start()
-        print("🔔✅ ADB Monitor: Monitoramento de conexão iniciado.")
+        """Versão simplificada: apenas verifica o status sem iniciar uma thread.
+        
+        Essa função está mantida por compatibilidade com código existente,
+        mas não inicia mais uma thread de monitoramento contínuo.
+        Para verificar o status, use is_connected() diretamente.
+        """
+        # Apenas verifica o status atual sem iniciar uma thread
+        is_connected = self.is_connected()
+        if is_connected and self._target_serial:
+            print(f"ADB: Dispositivo '{self._target_serial}' está conectado.")
+        else:
+            print("ADB: Nenhum dispositivo conectado.")
     
     def stop_connection_monitoring(self) -> None:
-        """Para o monitoramento da conexão ADB."""
-        if self._monitor_thread is None or not self._monitor_thread.is_alive():
-            return
-            
-        self._stop_monitor = True
-        self._monitor_thread.join(timeout=2.0)  # Aguarda até 2 segundos para a thread encerrar
-        if self._monitor_thread.is_alive():
-            print("🔔⚠️ ADB Monitor: Thread de monitoramento não encerrou a tempo.")
-        else:
-            print("🔔⏹️ ADB Monitor: Monitoramento de conexão encerrado.")
+        """Versão simplificada que não precisa parar nenhuma thread.
+        
+        Essa função está mantida por compatibilidade com código existente.
+        """
+        # Não há mais thread de monitoramento para encerrar
+        print("ADB: Monitoramento não está mais ativo (sem thread)")
     
     def _connection_monitor_worker(self) -> None:
         """Thread de trabalho que monitora continuamente o estado da conexão ADB."""

@@ -19,3 +19,7 @@ ENV/
 *.swp
 *.swo
 
+# Logs
+logs/
+*.log
+

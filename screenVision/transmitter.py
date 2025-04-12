@@ -17,6 +17,12 @@ import urllib3
 import numpy as np
 import cv2
 
+# Import do sistema de logs
+from utils.logger import get_logger, terminal_debug
+
+# Logger para este módulo
+logger = get_logger('transmitter')
+
 # Desativa avisos de certificado SSL inseguro
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -66,7 +72,7 @@ class ScreenTransmitter:
         # Inicia thread de processamento assíncrono
         self._start_worker()
         
-        print(f"📡 Transmissor inicializado - Servidor: {server_url}")
+        logger.info(f"Transmissor inicializado - Servidor: {server_url}")
     
     def _start_worker(self):
         """Inicia a thread de processamento de imagens para envio."""
@@ -85,7 +91,7 @@ class ScreenTransmitter:
         self.status_thread = threading.Thread(target=self._periodic_status, daemon=True)
         self.status_thread.start()
         
-        print("📡▶️ Thread de transmissão iniciada")
+        logger.info("Thread de transmissão iniciada")
     
     def _periodic_status(self):
         """Exibe estatísticas de transmissão periodicamente."""
