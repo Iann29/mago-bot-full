@@ -22,4 +22,5 @@ ENV/
 # Logs
 logs/
 *.log
-
+.output_screenshots
+.output_screenshots/*
