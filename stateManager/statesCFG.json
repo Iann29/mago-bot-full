@@ -1,0 +1,44 @@
+{
+  "states": {
+    "hayday_app_icon": {
+      "display_name": "Página inicial Do Dispositivo",
+      "roi": [371, 0, 269, 299],
+      "confidence": 0.75,
+      "image_path": "dataset/imageStates/mobilehome.png",
+      "use_mask": false,
+      "priority": []
+    },
+    "jogo_aberto": {
+      "display_name": "Dentro do jogo - Fazenda aberta",
+      "roi": [561, 394, 79, 86],
+      "confidence": 0.75,
+      "image_path": "dataset/imageStates/jogoaberto.png",
+      "use_mask": false,
+      "priority": []
+    },
+    "inside_shop":{
+      "display_name": "Loja aberta",
+      "roi": [50, 39, 186, 196],
+      "confidence": 0.75,
+      "image_path": "dataset/imageStates/dentrodaloja.png",
+      "use_mask": false,
+      "priority": ["jogo_aberto"]
+    },
+    "item_shop_list":{
+      "display_name": "Escolhendo item",
+      "roi": [97, 138, 89, 78],
+      "confidence": 0.75,
+      "image_path": "dataset/imageStates/escolhendoitens.png",
+      "use_mask": false,
+      "priority": ["jogo_aberto", "inside_shop"]
+    },
+    "book_interface":{
+      "display_name": "Menu do livro aberto",
+      "roi": [163, 386, 184, 94],
+      "confidence": 0.75,
+      "image_path": "dataset/imageStates/bookmenu.png",
+      "use_mask": false,
+      "priority": ["jogo_aberto"]
+    }
+  }
+}

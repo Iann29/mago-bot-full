@@ -20,6 +20,17 @@ from cerebro.capture import screenshot_queue
 class HayDayTestApp:
     """Classe principal da interface gráfica do aplicativo."""
     
+    # Dicionário de kits disponíveis e seus respectivos módulos
+    KITS = {
+        'Celeiro': 'kit_celeiro',
+        'Terra': 'kit_terra',
+        'Silo': 'kit_silo',
+        'Serra': 'kit_serra',
+        'Dinamite': 'kit_dinamite',
+        'Machado': 'kit_machado',
+        'Pá': 'kit_pa'
+    }
+    
     def __init__(self, root, user_data=None):
         """
         Inicializa a interface gráfica.
@@ -182,20 +193,36 @@ class HayDayTestApp:
         self.transmission_status_label = ttk.Label(transmission_frame, text="Transmissão: Inativa", foreground="gray")
         self.transmission_status_label.pack(side=tk.LEFT, padx=5)
         
-        # Frame de ações/testes com visual melhorado
-        actions_frame = ttk.LabelFrame(main_frame, text="Ações e Testes", padding=15)
+        # Frame de venda de kits com visual melhorado
+        actions_frame = ttk.LabelFrame(main_frame, text="Botões de Venda de Kits", padding=15)
         actions_frame.pack(fill=tk.X, padx=20, pady=10)
         
-        # Botões de teste
-        # Botões estilizados para ações
-        buttons_container = ttk.Frame(actions_frame)
-        buttons_container.pack(fill=tk.X, expand=True, padx=5, pady=5)
+        # Frame para organizar os botões em grid
+        buttons_grid = ttk.Frame(actions_frame)
+        buttons_grid.pack(fill=tk.X, expand=True, padx=5, pady=5)
         
-        test_button = ttk.Button(buttons_container, text="Executar Teste de Template", command=self.run_template_test)
-        test_button.pack(side=tk.LEFT, padx=10, pady=10, expand=True, fill=tk.X)
+        # Configurar o grid para 3 colunas
+        num_cols = 3
+        row, col = 0, 0
         
-        masked_test_button = ttk.Button(buttons_container, text="Teste com Máscara", command=self.run_masked_test)
-        masked_test_button.pack(side=tk.LEFT, padx=10, pady=10, expand=True, fill=tk.X)
+        # Adicionar botões para cada kit disponível
+        for kit_name, module_name in self.KITS.items():
+            button = ttk.Button(
+                buttons_grid, 
+                text=f"Kit {kit_name}", 
+                command=lambda name=kit_name, module=module_name: self.run_kit(name, module)
+            )
+            button.grid(row=row, column=col, padx=5, pady=5, sticky="ew")
+            
+            # Avançar para a próxima posição no grid
+            col += 1
+            if col >= num_cols:
+                col = 0
+                row += 1
+        
+        # Configurar pesos das colunas para distribuição uniforme
+        for i in range(num_cols):
+            buttons_grid.columnconfigure(i, weight=1)
         
         # Espaçador para manter o layout equilibrado
         spacer_frame = ttk.Frame(main_frame, height=20)
@@ -326,6 +353,47 @@ class HayDayTestApp:
         except Exception as e:
             self.log(f"❌ ERRO no teste com máscara: {e}")
             messagebox.showerror("Erro no Teste", f"Ocorreu um erro: {e}")
+    
+    def run_kit(self, kit_name, module_name):
+        """Executa a venda do kit especificado"""
+        if not self.connected_device:
+            messagebox.showerror("Erro", "Nenhum dispositivo conectado!")
+            return
+            
+        # Cria thread para não travar a UI
+        kit_thread = threading.Thread(target=lambda: self._run_kit_thread(kit_name, module_name))
+        kit_thread.daemon = True
+        kit_thread.start()
+    
+    def _run_kit_thread(self, kit_name, module_name):
+        """Função que executa a venda do kit em thread separada"""
+        try:
+            self.log(f"Iniciando venda do Kit {kit_name}...")
+            
+            # Importa dinamicamente o módulo do kit
+            import importlib
+            try:
+                # Carrega o módulo do kit da pasta execution
+                kit_module = importlib.import_module(f'execution.{module_name}')
+                
+                # Verifica se o módulo tem uma função run
+                if hasattr(kit_module, 'run'):
+                    result = kit_module.run()
+                    if result:
+                        self.log(f"✅ Kit {kit_name} vendido com sucesso!")
+                        messagebox.showinfo("Venda de Kit", f"Kit {kit_name} vendido com sucesso!")
+                    else:
+                        self.log(f"⚠️ Kit {kit_name}: Operação finalizada")
+                        messagebox.showinfo("Venda de Kit", f"Operação de venda do Kit {kit_name} finalizada.")
+                else:
+                    self.log(f"❌ Kit {kit_name}: Módulo não possui função 'run'")
+                    messagebox.showwarning("Erro de Kit", f"O módulo do Kit {kit_name} não possui função 'run'")
+            except Exception as e:
+                self.log(f"❌ Erro ao carregar módulo do Kit {kit_name}: {e}")
+                messagebox.showerror("Erro de Importação", f"Erro ao carregar módulo do Kit {kit_name}: {e}")
+        except Exception as e:
+            self.log(f"❌ ERRO ao executar Kit {kit_name}: {e}")
+            messagebox.showerror("Erro na Venda", f"Ocorreu um erro: {e}")
     
     def schedule_ui_update(self, callback, delay_ms):
         """Agenda uma atualização de UI com segurança"""

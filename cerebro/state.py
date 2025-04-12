@@ -30,7 +30,7 @@ def initialize_state_manager() -> StateManager:
     
     return state_manager
 
-def register_state_callback(callback: Callable[[GameState, GameState], None]) -> None:
+def register_state_callback(callback: Callable[[str, str], None]) -> None:
     """
     Registra uma função de callback para mudanças de estado.
     
@@ -40,21 +40,43 @@ def register_state_callback(callback: Callable[[GameState, GameState], None]) ->
     global state_manager
     
     if state_manager:
-        state_manager.register_state_change_callback(callback)
+        # Criamos um wrapper que converte os state_ids para display_names
+        def state_callback_wrapper(prev_state_id: str, new_state_id: str):
+            # Obtemos o nome amigável para exibição em vez do ID
+            if state_manager.state_configs and new_state_id in state_manager.state_configs:
+                new_state_display = state_manager.state_configs[new_state_id].display_name
+            else:
+                new_state_display = new_state_id.replace('_', ' ').title()
+                
+            if state_manager.state_configs and prev_state_id in state_manager.state_configs:
+                prev_state_display = state_manager.state_configs[prev_state_id].display_name
+            else:
+                prev_state_display = prev_state_id.replace('_', ' ').title()
+            
+            # Chama o callback original passando os nomes amigáveis
+            callback(prev_state_display, new_state_display)
+            
+        state_manager.register_state_change_callback(state_callback_wrapper)
         print("🔔✅ Registro de callback de estado concluído.")
     else:
         print("⚠️ StateManager não inicializado. Inicialize antes de registrar callbacks.")
 
-def get_current_state() -> GameState:
+def get_current_state() -> str:
     """
     Retorna o estado atual do jogo.
     
     Returns:
-        GameState: Estado atual ou UNKNOWN se não inicializado
+        str: Nome amigável (display_name) do estado atual ou "Desconhecido" se não inicializado
     """
     if state_manager:
-        return state_manager.current_state
-    return GameState.UNKNOWN
+        current_state_id = state_manager.current_state
+        # Verifica se o estado atual tem um nome amigável para exibição
+        if state_manager.state_configs and current_state_id in state_manager.state_configs:
+            return state_manager.state_configs[current_state_id].display_name
+        else:
+            # Formata o ID do estado para exibição
+            return current_state_id.replace('_', ' ').title()
+    return "Desconhecido"
 
 def stop_state_monitoring() -> None:
     """Para o monitoramento de estados."""
