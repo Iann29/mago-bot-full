@@ -6,8 +6,8 @@ Altere os níveis para controlar a quantidade de mensagens.
 from utils.logger import LogLevel
 
 # Configuração global de logs
-# MODIFICAÇÃO: Ajustar para mostrar apenas TERMINAL e superiores
-GLOBAL_LOG_LEVEL = LogLevel.TERMINAL  # Mostra apenas TERMINAL ou superior no console
+# MODIFICAÇÃO: Ajustar para mostrar todos os níveis de log no console
+GLOBAL_LOG_LEVEL = LogLevel.DEBUG  # Mostra todos os níveis de log no console
 
 # Configurações específicas por módulo
 # MODIFICAÇÃO: Ajustar níveis para reduzir o volume de logs
@@ -31,12 +31,10 @@ MODULE_LOG_LEVELS = {
     'auth': LogLevel.ERROR,
 }
 
-# Desabilitar completamente logs para certos módulos
-# MODIFICAÇÃO: Adicionar mais módulos para desativar completamente
+# Módulos com log desativado
+# MODIFICAÇÃO: Reduzir a lista para mostrar mais logs no console
 DISABLED_MODULES = [
-    'adb',  # Desativa todos os logs do ADB
-    'screenshotter',  # Desativa logs do Screenshotter
-    'templateMatcher',  # Desativa logs do TemplateMatcher
+    # Removido a maioria dos módulos desativados para permitir que os logs apareçam no console
 ]
 
 # Configurar para salvar logs em arquivo (além do console)
