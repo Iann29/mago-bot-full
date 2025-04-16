@@ -64,6 +64,21 @@
             "type": "click",
             "params": [383, 241],
             "description": "Clica no botão de adicionar"
+          },
+          {
+            "type": "click",
+            "params": [518, 81],
+            "description": "Clica na parte superior da tela"
+          },
+          {
+            "type": "wait",
+            "params": [0.05],
+            "description": "Espera 50ms"
+          },
+          {
+            "type": "click",
+            "params": [618, 380],
+            "description": "Clica no botão de retorno"
           }
         ]
       },
@@ -110,6 +125,11 @@
             "description": "Clica no campo de entrada de tag"
           },
           {
+            "type": "wait",
+            "params": [0.1],
+            "description": "Espera 100ms"
+          },
+          {
             "type": "send_keys",
             "params": ["<customer_id>"],
             "description": "Digita o ID do cliente"
@@ -118,6 +138,266 @@
             "type": "click",
             "params": [442, 167],
             "description": "Clica em procurar"
+          },
+          {
+            "type": "wait",
+            "params": [0.2],
+            "description": "Espera 200ms"
+          },
+          {
+            "type": "searchTemplate",
+            "params": ["dataset\\imageStates\\clienteEncontrado.png", [279, 187, 230, 123]],
+            "attempts": 2,
+            "threshold": 0.7,
+            "description": "Verifica se o cliente foi encontrado na lista"
+          },
+          {
+            "type": "click",
+            "params": [383, 241],
+            "description": "Clica no botão de adicionar"
+          },
+          {
+            "type": "click",
+            "params": [518, 81],
+            "description": "Clica na parte superior da tela"
+          },
+          {
+            "type": "wait",
+            "params": [0.05],
+            "description": "Espera 50ms"
+          },
+          {
+            "type": "click",
+            "params": [618, 380],
+            "description": "Clica no botão de retorno"
+          }
+        ]
+      },
+      "book_interface": {
+        "actions": [
+          {
+            "type": "click",
+            "params": [249, 445],
+            "description": "Clica no livro"
+          },
+          {
+            "type": "wait",
+            "params": [1.0],
+            "description": "Espera 1000ms"
+          },
+          {
+            "type": "verify_state",
+            "params": ["menu_add_client", 2],
+            "description": "Verifica se o estado mudou para menu_add_client (2 tentativas)"
+          },
+          {
+            "type": "click",
+            "params": [189, 169],
+            "description": "Clica no campo de entrada de tag"
+          },
+          {
+            "type": "wait",
+            "params": [0.1],
+            "description": "Espera 100ms"
+          },
+          {
+            "type": "send_keys",
+            "params": ["<customer_id>"],
+            "description": "Digita o ID do cliente"
+          },
+          {
+            "type": "click",
+            "params": [442, 167],
+            "description": "Clica em procurar"
+          },
+          {
+            "type": "wait",
+            "params": [0.2],
+            "description": "Espera 200ms"
+          },
+          {
+            "type": "searchTemplate",
+            "params": ["dataset\\imageStates\\clienteEncontrado.png", [279, 187, 230, 123]],
+            "attempts": 2,
+            "threshold": 0.7,
+            "description": "Verifica se o cliente foi encontrado na lista"
+          },
+          {
+            "type": "click",
+            "params": [383, 241],
+            "description": "Clica no botão de adicionar"
+          },
+          {
+            "type": "click",
+            "params": [518, 81],
+            "description": "Clica na parte superior da tela"
+          },
+          {
+            "type": "wait",
+            "params": [0.05],
+            "description": "Espera 50ms"
+          },
+          {
+            "type": "click",
+            "params": [618, 380],
+            "description": "Clica no botão de retorno"
+          }
+        ]
+      },
+      "menu_add_client": {
+        "actions": [
+          {
+            "type": "click",
+            "params": [189, 169],
+            "description": "Clica no campo de entrada de tag"
+          },
+          {
+            "type": "wait",
+            "params": [0.1],
+            "description": "Espera 100ms"
+          },
+          {
+            "type": "send_keys",
+            "params": ["<customer_id>"],
+            "description": "Digita o ID do cliente"
+          },
+          {
+            "type": "click",
+            "params": [442, 167],
+            "description": "Clica em procurar"
+          },
+          {
+            "type": "wait",
+            "params": [0.2],
+            "description": "Espera 200ms"
+          },
+          {
+            "type": "searchTemplate",
+            "params": ["dataset\\imageStates\\clienteEncontrado.png", [279, 187, 230, 123]],
+            "attempts": 2,
+            "threshold": 0.7,
+            "description": "Verifica se o cliente foi encontrado na lista"
+          },
+          {
+            "type": "click",
+            "params": [383, 241],
+            "description": "Clica no botão de adicionar"
+          },
+          {
+            "type": "click",
+            "params": [518, 81],
+            "description": "Clica na parte superior da tela"
+          },
+          {
+            "type": "wait",
+            "params": [0.05],
+            "description": "Espera 50ms"
+          },
+          {
+            "type": "click",
+            "params": [618, 380],
+            "description": "Clica no botão de retorno"
+          }
+        ]
+      },
+      "item_shop_list": {
+        "actions": [
+          {
+            "type": "click",
+            "params": [448, 125],
+            "description": "Clica no item da loja"
+          },
+          {
+            "type": "wait",
+            "params": [0.05],
+            "description": "Espera 50ms"
+          },
+          {
+            "type": "click",
+            "params": [480, 131],
+            "description": "Clica no botão de fechar a loja"
+          },
+          {
+            "type": "wait",
+            "params": [0.1],
+            "description": "Espera 100ms"
+          },
+          {
+            "type": "click",
+            "params": [621, 454],
+            "description": "Clica no botão de abrir o menu de cliente"
+          },
+          {
+            "type": "wait",
+            "params": [0.3],
+            "description": "Espera 300ms"
+          },
+          {
+            "type": "click",
+            "params": [249, 444],
+            "description": "Clica no livro"
+          },
+          {
+            "type": "wait",
+            "params": [1.0],
+            "description": "Espera 1000ms"
+          },
+          {
+            "type": "verify_state",
+            "params": ["menu_add_client", 2],
+            "description": "Verifica se o estado mudou para menu_add_client (2 tentativas)"
+          },
+          {
+            "type": "click",
+            "params": [189, 169],
+            "description": "Clica no campo de entrada de tag"
+          },
+          {
+            "type": "wait",
+            "params": [0.1],
+            "description": "Espera 100ms"
+          },
+          {
+            "type": "send_keys",
+            "params": ["<customer_id>"],
+            "description": "Digita o ID do cliente"
+          },
+          {
+            "type": "click",
+            "params": [442, 167],
+            "description": "Clica em procurar"
+          },
+          {
+            "type": "wait",
+            "params": [0.2],
+            "description": "Espera 200ms"
+          },
+          {
+            "type": "searchTemplate",
+            "params": ["dataset\\imageStates\\clienteEncontrado.png", [279, 187, 230, 123]],
+            "attempts": 2,
+            "threshold": 0.7,
+            "description": "Verifica se o cliente foi encontrado na lista"
+          },
+          {
+            "type": "click",
+            "params": [383, 241],
+            "description": "Clica no botão de adicionar"
+          },
+          {
+            "type": "click",
+            "params": [518, 81],
+            "description": "Clica na parte superior da tela"
+          },
+          {
+            "type": "wait",
+            "params": [0.05],
+            "description": "Espera 50ms"
+          },
+          {
+            "type": "click",
+            "params": [618, 380],
+            "description": "Clica no botão de retorno"
           }
         ]
       }
