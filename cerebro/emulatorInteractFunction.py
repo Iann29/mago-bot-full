@@ -10,10 +10,6 @@ from typing import Union, Optional, Tuple
 
 # Importar o gerenciador ADB para obter a instância do dispositivo
 from ADBmanager import adb_manager
-from utils.logger import get_logger
-
-# Logger para este módulo
-logger = get_logger('emulator_interact')
 
 def get_device():
     """
@@ -24,7 +20,7 @@ def get_device():
     """
     device = adb_manager.get_device()
     if not device:
-        logger.error("Nenhum dispositivo ADB conectado")
+        print("Nenhum dispositivo ADB conectado")
     return device
 
 def click(x: Union[int, float], y: Union[int, float], duration: float = 0.05) -> bool:
@@ -51,11 +47,9 @@ def click(x: Union[int, float], y: Union[int, float], duration: float = 0.05) ->
         # Usando o comando shell 'input tap' que funciona melhor com o emulador
         result = device.shell(f"input tap {x_int} {y_int}")
         time.sleep(duration)  # Esperamos a duração especificada
-        
-        logger.info(f"Click realizado em ({x_int}, {y_int}) via input tap com duração {duration}s")
         return True
     except Exception as e:
-        logger.error(f"Erro ao realizar click em ({x}, {y}): {e}")
+        print(f"Erro ao realizar click em ({x}, {y}): {e}")
         return False
 
 def swipe(
@@ -84,10 +78,9 @@ def swipe(
     
     try:
         device.swipe(x1, y1, x2, y2, duration)
-        logger.info(f"Swipe realizado de ({x1}, {y1}) para ({x2}, {y2}) com duração {duration}s")
         return True
     except Exception as e:
-        logger.error(f"Erro ao realizar swipe de ({x1}, {y1}) para ({x2}, {y2}): {e}")
+        print(f"Erro ao realizar swipe de ({x1}, {y1}) para ({x2}, {y2}): {e}")
         return False
 
 def long_click(x: Union[int, float], y: Union[int, float], duration: float = 1.0) -> bool:
@@ -108,10 +101,9 @@ def long_click(x: Union[int, float], y: Union[int, float], duration: float = 1.0
     
     try:
         device.long_click(x, y, duration)
-        logger.info(f"Long click realizado em ({x}, {y}) com duração {duration}s")
         return True
     except Exception as e:
-        logger.error(f"Erro ao realizar long click em ({x}, {y}): {e}")
+        print(f"Erro ao realizar long click em ({x}, {y}): {e}")
         return False
 
 def send_keys(text: str) -> bool:
@@ -130,10 +122,9 @@ def send_keys(text: str) -> bool:
     
     try:
         device.send_keys(text)
-        logger.info(f"Texto enviado: '{text}'")
         return True
     except Exception as e:
-        logger.error(f"Erro ao enviar texto '{text}': {e}")
+        print(f"Erro ao enviar texto '{text}': {e}")
         return False
 
 def press_key(keycode: int) -> bool:
@@ -152,10 +143,9 @@ def press_key(keycode: int) -> bool:
     
     try:
         device.press(keycode)
-        logger.info(f"Tecla pressionada: keycode {keycode}")
         return True
     except Exception as e:
-        logger.error(f"Erro ao pressionar tecla {keycode}: {e}")
+        print(f"Erro ao pressionar tecla {keycode}: {e}")
         return False
 
 def get_screen_resolution() -> Optional[Tuple[int, int]]:
@@ -173,10 +163,9 @@ def get_screen_resolution() -> Optional[Tuple[int, int]]:
         # Obtém dimensões da tela
         display_info = device.window_size()
         width, height = display_info
-        logger.info(f"Resolução da tela: {width}x{height}")
         return width, height
     except Exception as e:
-        logger.error(f"Erro ao obter resolução da tela: {e}")
+        print(f"Erro ao obter resolução da tela: {e}")
         return None
 
 def wait(seconds: float) -> None:
@@ -186,5 +175,4 @@ def wait(seconds: float) -> None:
     Args:
         seconds: Número de segundos para esperar
     """
-    logger.info(f"Aguardando {seconds} segundos")
     time.sleep(seconds)

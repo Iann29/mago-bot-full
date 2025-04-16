@@ -7,11 +7,7 @@ import threading
 import queue
 from typing import Optional, List, Any, Callable
 
-# Import do sistema de logs
-from utils.logger import get_logger
-
-# Logger para este módulo
-logger = get_logger('adb')
+# Sistema de logs removido
 
 class ADBManager:
     """
@@ -37,7 +33,7 @@ class ADBManager:
         self._disconnect_callbacks: List[Callable] = []
         self._monitor_interval: float = 3.0  # Verificar a cada 3 segundos
         
-        logger.info("ADBManager: Instância criada.")
+        print("ADBManager: Instância criada.")
 
     def _run_with_timeout(self, func: Callable, timeout: int = 5, *args, **kwargs) -> tuple[bool, Any]:
         """Executa uma função com timeout.

@@ -6,11 +6,7 @@ import threading
 import queue
 from typing import Optional
 
-# Import do sistema de logs
-from utils.logger import get_logger
-
-# Configuração do logger para este módulo
-logger = get_logger('capture')
+# Sistema de logs removido
 
 from adbutils import AdbDevice
 from screenVision.screenshotMain import Screenshotter
@@ -35,14 +31,14 @@ def capture_worker(fps: float, adb_device: AdbDevice, username: str = None):
     # Configura o transmissor com o nome de usuário
     if username:
         transmitter.set_username(username)
-        logger.debug(f"Transmissor configurado para usuário: {username}")
+        print(f"Transmissor configurado para usuário: {username}")
     
     capture_interval = 1.0 / fps
     last_capture_time = time.time()
     consecutive_failures = 0  # Contador de falhas consecutivas
     max_failures = 2  # Número máximo de falhas antes de parar a thread
     
-    logger.terminal(f"Thread de captura iniciada, capturando a ~{fps} FPS")
+    print(f"Thread de captura iniciada, capturando a ~{fps} FPS")
 
     while not stop_capture_thread and not stop_capture_event.is_set():
         # Tenta capturar e colocar na fila
@@ -73,18 +69,18 @@ def capture_worker(fps: float, adb_device: AdbDevice, username: str = None):
                     # print(f"CAPTURE_THREAD: Screenshot OK ({capture_duration:.3f}s). Fila: {screenshot_queue.qsize()}") # Debug
                 else:
                     consecutive_failures += 1
-                    logger.warning(f"Falha na captura ({capture_duration:.3f}s) ({consecutive_failures}/{max_failures})")
+                    print(f"Falha na captura ({capture_duration:.3f}s) ({consecutive_failures}/{max_failures})")
                     if consecutive_failures >= max_failures:
-                         logger.error("Máximo de falhas atingido. Encerrando thread de captura")
+                         print("Máximo de falhas atingido. Encerrando thread de captura")
                          stop_capture_thread = True
                          break  # Sai do loop
                     time.sleep(0.5)  # Pausa curta após falha na captura
 
         except Exception as e:
             consecutive_failures += 1
-            logger.error(f"Erro inesperado na captura: {e} ({consecutive_failures}/{max_failures})")
+            print(f"Erro inesperado na captura: {e} ({consecutive_failures}/{max_failures})")
             if consecutive_failures >= max_failures:
-                 logger.error("Máximo de falhas atingido. Encerrando thread de captura")
+                 print("Máximo de falhas atingido. Encerrando thread de captura")
                  stop_capture_thread = True
                  break  # Sai do loop
             time.sleep(0.5)  # Pausa curta após falha na captura
@@ -100,7 +96,7 @@ def capture_worker(fps: float, adb_device: AdbDevice, username: str = None):
                 break
             time.sleep(sleep_fraction)
 
-    logger.info("Thread de captura encerrando...")
+    print("Thread de captura encerrando...")
 
 def start_screenshot_capture(fps: float, device: AdbDevice, username: str = None) -> Optional[threading.Thread]:
     """
@@ -129,7 +125,7 @@ def start_screenshot_capture(fps: float, device: AdbDevice, username: str = None
     
     # Inicia a thread
     capture_thread.start()
-    logger.info(f"Thread de captura iniciada (FPS={fps})")
+    print(f"Thread de captura iniciada (FPS={fps})")
     
     return capture_thread
 
@@ -143,10 +139,10 @@ def stop_screenshot_capture() -> None:
     
     # Espera a thread terminar com timeout curto
     if capture_thread and capture_thread.is_alive():
-        logger.debug("Aguardando thread de captura encerrar (timeout=1.5s)...")
+        print("Aguardando thread de captura encerrar (timeout=1.5s)...")
         capture_thread.join(timeout=1.5)
         
         if capture_thread.is_alive():
-            logger.warning("Thread de captura não encerrou no tempo esperado")
+            print("Thread de captura não encerrou no tempo esperado")
         else:
-            logger.info("Thread de captura encerrada com sucesso")
+            print("Thread de captura encerrada com sucesso")
