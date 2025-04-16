@@ -5,11 +5,16 @@ Módulo para adicionar clientes no HayDay através de IDs.
 import json
 import os
 import time
-from typing import Dict, List, Any, Optional
+import cv2
+import numpy as np
+import queue
+from typing import Dict, List, Any, Optional, Tuple
 
 # Importa as funções de interação com o emulador
 from cerebro.emulatorInteractFunction import click, wait, send_keys
 from cerebro.state import get_current_state, get_current_state_id
+from cerebro.capture import screenshot_queue
+from screenVision.templateMatcher import TemplateMatcher
 
 # Cores para formatação de terminal
 class Colors:
@@ -79,6 +84,18 @@ def execute_action(action: Dict[str, Any], customer_id: str) -> bool:
             else:
                 print(f"{Colors.RED}[CLIENTE] ERRO:{Colors.RESET} Parâmetros insuficientes para ação send_keys")
                 return False
+        
+        elif action_type == "searchTemplate":
+            if len(params) >= 2:
+                template_path = params[0]
+                roi = params[1] if len(params) >= 2 else None
+                max_attempts = int(action.get("attempts", 2))
+                threshold = float(action.get("threshold", 0.8))
+                
+                return search_template(template_path, roi, max_attempts, threshold)
+            else:
+                print(f"{Colors.RED}[CLIENTE] ERRO:{Colors.RESET} Parâmetros insuficientes para ação searchTemplate")
+                return False
                 
         elif action_type == "verify_state":
             if len(params) >= 2:
@@ -112,6 +129,71 @@ def execute_action(action: Dict[str, Any], customer_id: str) -> bool:
         print(f"{Colors.RED}[CLIENTE] ERRO:{Colors.RESET} Falha ao executar ação {action.get('type', 'desconhecida')}: {e}")
         return False
 
+def search_template(template_path: str, roi: List[int], max_attempts: int = 2, threshold: float = 0.8) -> bool:
+    """
+    Busca um template na tela atual e verifica se ele foi encontrado.
+    
+    Args:
+        template_path: Caminho para a imagem do template
+        roi: Região de interesse [x, y, w, h] onde procurar o template
+        max_attempts: Número máximo de tentativas
+        threshold: Limiar de confiança para considerar que o template foi encontrado
+    
+    Returns:
+        bool: True se o template foi encontrado, False caso contrário
+    """
+    template_matcher = TemplateMatcher(default_threshold=threshold)
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    
+    # Garante que o caminho é absoluto
+    if not os.path.isabs(template_path):
+        template_path = os.path.join(project_root, template_path)
+    
+    # Converte a ROI para o formato esperado pelo template_matcher
+    roi_tuple = tuple(roi) if roi else None
+    
+    print(f"{Colors.YELLOW}[CLIENTE] BUSCANDO:{Colors.RESET} Template '{os.path.basename(template_path)}' (ROI: {roi})")
+    
+    for attempt in range(max_attempts):
+        # Tenta obter a última screenshot da fila
+        try:
+            # Acessa a screenshot atual sem removê-la da fila (para não interferir com outros processos)
+            screenshot = screenshot_queue.queue[-1] if not screenshot_queue.empty() else None
+            
+            if screenshot is None:
+                print(f"{Colors.YELLOW}[CLIENTE] AGUARDANDO:{Colors.RESET} Nenhuma screenshot disponível na fila")
+                wait(0.5)  # Pequena pausa antes da próxima tentativa
+                continue
+            
+            # Converte para formato OpenCV (BGR) se a imagem já não estiver nesse formato
+            if isinstance(screenshot, np.ndarray):
+                # Verifica se a imagem está no formato BGR ou precisa ser convertida
+                if len(screenshot.shape) == 3 and screenshot.shape[2] == 3:
+                    screenshot_cv = screenshot
+                else:
+                    screenshot_cv = cv2.cvtColor(screenshot, cv2.COLOR_RGB2BGR)
+            else:
+                # Se for um objeto PIL Image
+                screenshot_cv = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
+            
+            # Busca o template
+            result = template_matcher.find_template(screenshot_cv, template_path, roi_tuple, threshold)
+            
+            if result and result.get('found', False):
+                confidence = result.get('confidence', 0.0)
+                position = result.get('position', (0, 0))
+                print(f"{Colors.GREEN}[CLIENTE] SUCESSO:{Colors.RESET} Template encontrado na posição {position} (confiança: {confidence:.4f})")
+                return True
+            
+            print(f"{Colors.YELLOW}[CLIENTE] TENTATIVA {attempt+1}/{max_attempts}:{Colors.RESET} Template não encontrado")
+        except Exception as e:
+            print(f"{Colors.RED}[CLIENTE] ERRO:{Colors.RESET} Falha ao processar screenshot: {e}")
+        
+        wait(0.5)  # Pequena pausa antes da próxima tentativa
+    
+    print(f"{Colors.RED}[CLIENTE] ERRO:{Colors.RESET} Template não encontrado após {max_attempts} tentativas")
+    return False
+
 def add_client(customer_id: str) -> bool:
     """
     Adiciona um cliente utilizando sua tag/ID.
@@ -137,18 +219,40 @@ def add_client(customer_id: str) -> bool:
     # Obtém a configuração de adição de cliente
     add_client_config = config["addCliente"]
     
-    # Verifica o estado atual
-    required_state = add_client_config.get("state", "")
-    current_state_id = get_current_state_id()
-    current_state_display = get_current_state()
+    # Verifica se estamos usando o formato antigo ou novo
+    if "states" in add_client_config:
+        # Novo formato - múltiplos estados
+        # Obtém o estado atual
+        current_state_id = get_current_state_id()
+        current_state_display = get_current_state()
+        
+        print(f"{Colors.BLUE}[CLIENTE] INFO:{Colors.RESET} Estado atual: '{current_state_id}' ({current_state_display})")
+        
+        # Verifica se temos configuração para o estado atual
+        if current_state_id not in add_client_config["states"]:
+            print(f"{Colors.RED}[CLIENTE] ERRO:{Colors.RESET} Não há configuração para o estado atual '{current_state_id}' ({current_state_display})")
+            print(f"{Colors.BLUE}[CLIENTE] INFO:{Colors.RESET} Estados configurados: {list(add_client_config['states'].keys())}")
+            return False
+            
+        # Obtém as ações para o estado atual
+        state_config = add_client_config["states"][current_state_id]
+        actions = state_config.get("actions", [])
+    else:
+        # Formato antigo - estado único
+        # Verifica o estado atual
+        required_state = add_client_config.get("state", "")
+        current_state_id = get_current_state_id()
+        current_state_display = get_current_state()
+        
+        # Verifica se o estado atual é o esperado - comparando IDs diretamente
+        if required_state and required_state != current_state_id:
+            print(f"{Colors.RED}[CLIENTE] ERRO:{Colors.RESET} Estado atual '{current_state_id}' ({current_state_display}) não corresponde ao esperado '{required_state}'")
+            return False
+        
+        # Executa as ações configuradas
+        actions = add_client_config.get("actions", [])
     
-    # Verifica se o estado atual é o esperado - comparando IDs diretamente
-    if required_state and required_state != current_state_id:
-        print(f"{Colors.RED}[CLIENTE] ERRO:{Colors.RESET} Estado atual '{current_state_id}' ({current_state_display}) não corresponde ao esperado '{required_state}'")
-        return False
-    
-    # Executa as ações configuradas
-    actions = add_client_config.get("actions", [])
+    # Executa as ações
     for action in actions:
         success = execute_action(action, customer_id)
         if not success:

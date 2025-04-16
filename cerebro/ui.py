@@ -41,50 +41,11 @@ class HayDayTestApp:
         """
         self.root = root
         self.root.title("HayDay Test Tool")
-        self.root.geometry("800x700")
+        self.root.geometry("700x600")
         self.root.resizable(True, True)
         
-        # Configurar tema escuro com cores nativas
-        bg_color = "#2d2d2d"  # Cor de fundo escura
-        fg_color = "#ffffff"  # Cor de texto clara
-        accent_color = "#007acc"  # Cor de destaque (azul)
-        frame_bg = "#333333"  # Cor de fundo para frames
-        entry_bg = "#1e1e1e"  # Cor de fundo para entradas de texto
-        
-        # Configura cores para a janela principal
-        self.root.configure(bg=bg_color)
-        
-        # Configura estilo para os widgets
-        style = ttk.Style()
-        
-        # Configurações gerais
-        style.configure(".", background=bg_color, foreground=fg_color)
-        style.configure("TFrame", background=bg_color)
-        style.configure("TLabel", background=bg_color, foreground=fg_color)
-        
-        # Botões padronizados com o mesmo estilo do botão de destaque
-        style.configure("TButton", background="#4cc9f0", foreground="#000000")
-        style.map("TButton", 
-                  background=[("active", "#80ed99"), ("pressed", "#57cc99")],
-                  foreground=[("active", "#000000")])
-        
-        # LabelFrame com bordas mais suaves e cores escuras
-        style.configure("TLabelframe", background=bg_color)
-        style.configure("TLabelframe.Label", background=bg_color, foreground=accent_color, font=("Segoe UI", 9, "bold"))
-        
-        # Botão destacado com cores vibrantes
-        style.configure("Accent.TButton", background="#4cc9f0", foreground="#000000")
-        style.map("Accent.TButton", 
-                  background=[("active", "#80ed99"), ("pressed", "#57cc99")],
-                  foreground=[("active", "#000000")])
-        
-        # Configura cores para a área de texto do log
-        self.log_colors = {
-            "bg": entry_bg,
-            "fg": fg_color,
-            "select_bg": accent_color,
-            "select_fg": "white"
-        }
+        # Configurar tema escuro com cores modernas
+        self.configure_theme()
         
         # Variáveis de controle
         self.adb_manager_instance = None
@@ -94,6 +55,9 @@ class HayDayTestApp:
         # Flag para controlar se a interface está ativa
         self.ui_active = True
         self.after_ids = []  # Lista para armazenar os IDs de chamadas after()
+        
+        # Variáveis para a área de adicionar cliente
+        self.client_tag_var = tk.StringVar()
         
         # Configurar a interface
         self.setup_ui()
@@ -108,103 +72,198 @@ class HayDayTestApp:
         # Iniciar monitoramento de conexão
         adb_manager.start_connection_monitoring()
     
+    def configure_theme(self):
+        """Configura o tema e as cores para a interface"""
+        # Cores mais modernas e atraentes
+        bg_color = "#1e1e2e"  # Fundo principal mais escuro
+        fg_color = "#cdd6f4"  # Texto mais suave
+        accent_color = "#89b4fa"  # Azul suave
+        frame_bg = "#313244"  # Fundo para frames
+        button_bg = "#89dceb"  # Cor vibrante para botões
+        button_active = "#94e2d5"  # Cor quando botão está ativo
+        
+        # Configura cores para a janela principal
+        self.root.configure(bg=bg_color)
+        
+        # Configura estilo para os widgets
+        style = ttk.Style()
+        
+        # Configurações gerais
+        style.configure(".", background=bg_color, foreground=fg_color)
+        style.configure("TFrame", background=bg_color)
+        style.configure("TLabel", background=bg_color, foreground=fg_color)
+        
+        # Botões estilizados
+        style.configure("TButton", background=button_bg, foreground="#11111b")
+        style.map("TButton", 
+                  background=[("active", button_active), ("pressed", "#74c7ec")],
+                  foreground=[("active", "#181825")])
+        
+        # LabelFrame com bordas mais suaves e cores escuras
+        style.configure("TLabelframe", background=bg_color)
+        style.configure("TLabelframe.Label", background=bg_color, foreground=accent_color, font=("Segoe UI", 10, "bold"))
+        
+        # Botão destacado com cores vibrantes
+        style.configure("Accent.TButton", background=button_bg, foreground="#11111b")
+        style.map("Accent.TButton", 
+                  background=[("active", button_active), ("pressed", "#74c7ec")],
+                  foreground=[("active", "#181825")])
+    
     def setup_ui(self):
         """Configura todos os elementos da interface"""
-        # Frame principal
-        main_frame = ttk.Frame(self.root, padding=10)
+        # Frame principal com padding
+        main_frame = ttk.Frame(self.root, padding=15)
         main_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Título com informação do usuário
-        title_text = "@magodohayday"
-            
-        # Header com título e logo
-        header_frame = ttk.Frame(main_frame)
-        header_frame.pack(fill=tk.X, pady=(10, 20))
+        # Header mais compacto com logo e título
+        self.setup_header(main_frame)
         
-        # Título estilizado
-        title_label = ttk.Label(header_frame, text=title_text, font=("Segoe UI", 20, "bold"))
-        title_label.pack(pady=5)
+        # Área de status em um único frame compacto
+        self.setup_status_area(main_frame)
         
-        # Subtítulo
-        subtitle = ttk.Label(header_frame, text="Bot de Automação", font=("Segoe UI", 12))
-        subtitle.pack(pady=2)
+        # Frame de estado do jogo
+        self.setup_game_state_area(main_frame)
         
-        # Frame de status com visual melhorado
-        status_frame = ttk.LabelFrame(main_frame, text="Status da Conexão", padding=15)
-        status_frame.pack(fill=tk.X, padx=20, pady=10)
+        # Área para adicionar cliente
+        self.setup_add_client_area(main_frame)
         
-        # Layout de status com botão de verificação
-        status_content_frame = ttk.Frame(status_frame)
-        status_content_frame.pack(fill=tk.X, expand=True)
+        # Área de ações para venda de kits
+        self.setup_actions_area(main_frame)
         
-        # Coluna esquerda: Labels de status
-        status_labels_frame = ttk.Frame(status_content_frame)
-        status_labels_frame.pack(side=tk.LEFT, fill=tk.Y)
+        # Inicia o timer para atualizar a UI
+        self.schedule_ui_update(self.update_state_time, 1000)  # Atualiza tempo de estado a cada 1s
         
-        self.status_label = ttk.Label(status_labels_frame, text="Não conectado")
-        self.status_label.pack(pady=5, anchor=tk.W)
+        # Registra callback para mudanças de estado
+        from cerebro.state import register_state_callback
+        register_state_callback(self.on_state_change)
+        self.log("🔔✅ Callback de estado registrado na UI")
+    
+    def setup_header(self, parent_frame):
+        """Configuração do cabeçalho da aplicação"""
+        header_frame = ttk.Frame(parent_frame)
+        header_frame.pack(fill=tk.X, pady=(0, 15))
         
-        self.device_label = ttk.Label(status_labels_frame, text="Dispositivo: Nenhum")
-        self.device_label.pack(pady=5, anchor=tk.W)
+        # Título e subtítulo em layout horizontal
+        title_frame = ttk.Frame(header_frame)
+        title_frame.pack(pady=5)
         
-        # Coluna direita: Botão de verificação
-        status_button_frame = ttk.Frame(status_content_frame)
-        status_button_frame.pack(side=tk.RIGHT)
+        title_label = ttk.Label(title_frame, text="@magodohayday", font=("Segoe UI", 20, "bold"))
+        title_label.pack(side=tk.LEFT, padx=(0, 10))
         
+        subtitle = ttk.Label(title_frame, text="Bot de Automação", font=("Segoe UI", 12))
+        subtitle.pack(side=tk.LEFT, padx=5, pady=8)
+    
+    def setup_status_area(self, parent_frame):
+        """Configuração da área de status compacta"""
+        status_frame = ttk.LabelFrame(parent_frame, text="Status do Sistema", padding=12)
+        status_frame.pack(fill=tk.X, padx=10, pady=10)
+        
+        # Grid para organizar status e botão
+        status_grid = ttk.Frame(status_frame)
+        status_grid.pack(fill=tk.X, expand=True, padx=5, pady=5)
+        
+        # Área de conexão
+        conn_frame = ttk.Frame(status_grid)
+        conn_frame.grid(row=0, column=0, sticky="w", padx=10)
+        
+        self.status_label = ttk.Label(conn_frame, text="Não conectado", font=("Segoe UI", 9, "bold"))
+        self.status_label.pack(side=tk.LEFT, padx=(0, 10))
+        
+        self.device_label = ttk.Label(conn_frame, text="Dispositivo: Nenhum")
+        self.device_label.pack(side=tk.LEFT)
+        
+        # Botão de verificar status à direita
         self.check_status_button = ttk.Button(
-            status_button_frame, 
-            text="Verificar Status", 
-            command=self.check_emulator_status
+            status_grid, 
+            text="Verificar Conexão", 
+            command=self.check_emulator_status,
+            style="Accent.TButton"
         )
-        self.check_status_button.pack(padx=5, pady=10)
+        self.check_status_button.grid(row=0, column=1, sticky="e", padx=10)
         
-        # Frame de captura com visual melhorado
-        capture_frame = ttk.LabelFrame(main_frame, text="Status da Captura", padding=15)
-        capture_frame.pack(fill=tk.X, padx=20, pady=10)
+        # Configurar pesos das colunas
+        status_grid.columnconfigure(0, weight=1)
+        status_grid.columnconfigure(1, weight=0)
+    
+    def setup_game_state_area(self, parent_frame):
+        """Configuração da área de estado do jogo"""
+        state_frame = ttk.LabelFrame(parent_frame, text="Estado do Jogo", padding=12)
+        state_frame.pack(fill=tk.X, padx=10, pady=10)
         
-        self.capture_status_label = ttk.Label(capture_frame, text="Thread de captura: Inativa")
-        self.capture_status_label.pack(side=tk.LEFT, padx=5)
+        state_grid = ttk.Frame(state_frame)
+        state_grid.pack(fill=tk.X, expand=True, padx=5, pady=5)
         
-        self.capture_fps_label = ttk.Label(capture_frame, text="FPS: --")
-        self.capture_fps_label.pack(side=tk.RIGHT, padx=5)
+        self.state_label = ttk.Label(state_grid, text="Estado atual: Desconhecido", font=("Segoe UI", 9, "bold"))
+        self.state_label.grid(row=0, column=0, sticky="w", padx=10)
         
-        # Frame de estado do jogo com visual melhorado
-        state_frame = ttk.LabelFrame(main_frame, text="Estado do Jogo", padding=15)
-        state_frame.pack(fill=tk.X, padx=20, pady=10)
+        self.state_time_label = ttk.Label(state_grid, text="Tempo no estado: 0s")
+        self.state_time_label.grid(row=0, column=1, sticky="e", padx=10)
         
-        self.state_label = ttk.Label(state_frame, text="Estado atual: Desconhecido")
-        self.state_label.pack(side=tk.LEFT, padx=5)
+        # Configurar pesos das colunas
+        state_grid.columnconfigure(0, weight=1)
+        state_grid.columnconfigure(1, weight=0)
+    
+    def setup_add_client_area(self, parent_frame):
+        """Configura a área para adicionar cliente na interface principal"""
+        client_frame = ttk.LabelFrame(parent_frame, text="Adicionar Cliente", padding=12)
+        client_frame.pack(fill=tk.X, padx=10, pady=10)
         
-        self.state_time_label = ttk.Label(state_frame, text="Tempo no estado: 0s")
-        self.state_time_label.pack(side=tk.RIGHT, padx=5)
+        # Frame interno para organização
+        inner_frame = ttk.Frame(client_frame)
+        inner_frame.pack(fill=tk.X, expand=True, padx=5, pady=5)
         
-        # Frame de status de transmissão com visual melhorado
-        transmission_frame = ttk.LabelFrame(main_frame, text="Status da Transmissão", padding=15)
-        transmission_frame.pack(fill=tk.X, padx=20, pady=10)
+        # Label de instrução
+        instruction_label = ttk.Label(inner_frame, text="Tag do cliente:", font=("Segoe UI", 10))
+        instruction_label.grid(row=0, column=0, sticky="w", padx=5, pady=5)
         
-        self.transmission_status_label = ttk.Label(transmission_frame, text="Transmissão: Inativa", foreground="gray")
-        self.transmission_status_label.pack(side=tk.LEFT, padx=5)
+        # Campo de texto para a tag
+        tag_entry = ttk.Entry(inner_frame, textvariable=self.client_tag_var, width=30)
+        tag_entry.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
         
-        # Frame de venda de kits com visual melhorado
-        actions_frame = ttk.LabelFrame(main_frame, text="Botões de Venda de Kits", padding=15)
-        actions_frame.pack(fill=tk.X, padx=20, pady=10)
+        # Botão de adicionar
+        add_button = ttk.Button(
+            inner_frame, 
+            text="Adicionar", 
+            command=self.add_client,
+            style="Accent.TButton",
+            width=15
+        )
+        add_button.grid(row=0, column=2, sticky="e", padx=5, pady=5)
         
-        # Frame para organizar os botões em grid
+        # Configurar pesos das colunas
+        inner_frame.columnconfigure(0, weight=0)  # Label não precisa expandir
+        inner_frame.columnconfigure(1, weight=1)  # Campo de texto expande
+        inner_frame.columnconfigure(2, weight=0)  # Botão não precisa expandir
+    
+    def setup_actions_area(self, parent_frame):
+        """Configuração da área de botões de ação"""
+        actions_frame = ttk.LabelFrame(parent_frame, text="Botões de Venda de Kits", padding=12)
+        actions_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Grid melhorado para botões
         buttons_grid = ttk.Frame(actions_frame)
-        buttons_grid.pack(fill=tk.X, expand=True, padx=5, pady=5)
+        buttons_grid.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
         # Configurar o grid para 3 colunas
         num_cols = 3
         row, col = 0, 0
         
-        # Adicionar botões para cada kit disponível
+        # Adicionar botões para cada kit disponível com visual melhorado
         for kit_name, module_name in self.KITS.items():
+            # Pula o 'Add Cliente' que será tratado separadamente
+            if kit_name == "Add Cliente":
+                continue
+                
+            button_frame = ttk.Frame(buttons_grid, padding=5)
+            button_frame.grid(row=row, column=col, padx=5, pady=5, sticky="nsew")
+            
             button = ttk.Button(
-                buttons_grid, 
+                button_frame, 
                 text=f"Kit {kit_name}", 
-                command=lambda name=kit_name, module=module_name: self.run_kit(name, module)
+                command=lambda name=kit_name, module=module_name: self.run_kit(name, module),
+                style="TButton"
             )
-            button.grid(row=row, column=col, padx=5, pady=5, sticky="ew")
+            button.pack(fill=tk.BOTH, expand=True, ipady=8)
             
             # Avançar para a próxima posição no grid
             col += 1
@@ -212,38 +271,36 @@ class HayDayTestApp:
                 col = 0
                 row += 1
         
-        # Configurar pesos das colunas para distribuição uniforme
+        # Configurar pesos das colunas e linhas para distribuição uniforme
         for i in range(num_cols):
             buttons_grid.columnconfigure(i, weight=1)
         
-        # Espaçador para manter o layout equilibrado
-        spacer_frame = ttk.Frame(main_frame, height=20)
-        spacer_frame.pack(fill=tk.X, padx=20, pady=10)
-        
-        # Inicia o timer para atualizar a UI
-        self.schedule_ui_update(self.update_capture_status, 1000)  # Atualiza a cada 1s
-        self.schedule_ui_update(self.check_transmission_timeout, 2000)  # Verifica a cada 2s
-        self.schedule_ui_update(self.update_state_time, 1000)  # Atualiza tempo de estado a cada 1s
-        
-        # Configura o callback no transmissor
-        self.setup_callbacks()
-        
-        # Registra callback para mudanças de estado
-        from cerebro.state import register_state_callback
-        register_state_callback(self.on_state_change)
-        self.log("🔔✅ Callback de estado registrado na UI")
+        for i in range(row + 1):
+            buttons_grid.rowconfigure(i, weight=1)
     
-    def setup_callbacks(self):
-        # Configura os callbacks necessários
-        print("Configurando callbacks...")
+    def add_client(self):
+        """Função para adicionar cliente a partir da interface integrada"""
+        customer_id = self.client_tag_var.get().strip()
+        if not customer_id:
+            messagebox.showwarning("Aviso", "Por favor, digite uma tag válida!")
+            return
         
-        # Callback para transmissão (se habilitado)
-        if transmitter.transmission_enabled:
-            transmitter.set_transmission_callback(self.update_transmission_status)
+        # Obtém o módulo de adicionar cliente
+        module_name = self.KITS["Add Cliente"]
+        
+        # Inicia a thread para adicionar o cliente
+        if not self.connected_device:
+            messagebox.showerror("Erro", "Nenhum dispositivo conectado!")
+            return
             
-        # Callback para mudança de estado
-        from cerebro.state import register_state_callback 
-        register_state_callback(self.on_state_change)
+        kit_thread = threading.Thread(
+            target=lambda: self._run_kit_thread("Add Cliente", module_name, customer_id)
+        )
+        kit_thread.daemon = True
+        kit_thread.start()
+        
+        # Limpa o campo de texto após iniciar o processo
+        self.client_tag_var.set("")
     
     def log(self, message):
         """Registra mensagem no console em vez da interface"""
@@ -260,13 +317,13 @@ class HayDayTestApp:
             self.connected_device = self.adb_manager_instance.get_device()
             device_serial = self.adb_manager_instance.get_target_serial()
             
-            self.status_label.config(text="Conectado ✓", foreground="green")
+            self.status_label.config(text="Conectado ✓", foreground="#a6e3a1")  # Verde
             self.device_label.config(text=f"Dispositivo: {device_serial}")
             
             print(f"📱🔌 Inicializando conexão ADB...")
             return True
         else:
-            self.status_label.config(text="Não conectado ✗", foreground="red")
+            self.status_label.config(text="Não conectado ✗", foreground="#f38ba8")  # Vermelho
             self.device_label.config(text="Dispositivo: Nenhum")
             return False
     
@@ -279,7 +336,7 @@ class HayDayTestApp:
         """Manipula o evento de conexão do emulador na thread da interface gráfica."""
         # Atualiza a interface para refletir a conexão
         self.emulator_connection_lost = False
-        self.status_label.config(text="Conectado ✓", foreground="green")
+        self.status_label.config(text="Conectado ✓", foreground="#a6e3a1")  # Verde
         self.device_label.config(text=f"Dispositivo: {device_serial}")
         
         # Obtém a referência ao dispositivo
@@ -300,7 +357,7 @@ class HayDayTestApp:
             
         self.emulator_connection_lost = True
         self.connected_device = None
-        self.status_label.config(text="Desconectado ✗", foreground="red")
+        self.status_label.config(text="Desconectado ✗", foreground="#f38ba8")  # Vermelho
         self.device_label.config(text="Dispositivo: Nenhum")
         
         # Mostra popup uma única vez se a conexão foi perdida
@@ -360,92 +417,12 @@ class HayDayTestApp:
             messagebox.showerror("Erro no Teste", f"Ocorreu um erro: {e}")
     
     def run_kit(self, kit_name, module_name):
-        """Executa a venda do kit especificado ou adiciona cliente"""
+        """Executa a venda do kit especificado"""
         if not self.connected_device:
             messagebox.showerror("Erro", "Nenhum dispositivo conectado!")
             return
         
-        # Caso especial para Add Cliente
-        if kit_name == "Add Cliente":
-            # Cria uma janela para inserir a tag do cliente
-            customer_dialog = tk.Toplevel(self.root)
-            customer_dialog.title("Adicionar Cliente")
-            customer_dialog.geometry("400x150")
-            customer_dialog.resizable(False, False)
-            customer_dialog.transient(self.root)  # Define como janela filha
-            customer_dialog.grab_set()  # Torna modal
-            
-            # Centraliza a janela
-            customer_dialog.update_idletasks()
-            width = customer_dialog.winfo_width()
-            height = customer_dialog.winfo_height()
-            x = (customer_dialog.winfo_screenwidth() // 2) - (width // 2)
-            y = (customer_dialog.winfo_screenheight() // 2) - (height // 2)
-            customer_dialog.geometry(f"{width}x{height}+{x}+{y}")
-            
-            # Configura estilo da janela
-            customer_dialog.configure(bg="#2d2d2d")
-            
-            # Frame principal
-            main_frame = ttk.Frame(customer_dialog, padding=20)
-            main_frame.pack(fill=tk.BOTH, expand=True)
-            
-            # Label de instrução
-            instruction_label = ttk.Label(main_frame, text="Digite a tag do cliente:", font=("Segoe UI", 10))
-            instruction_label.pack(pady=5, anchor=tk.W)
-            
-            # Campo de texto para a tag
-            tag_var = tk.StringVar()
-            tag_entry = ttk.Entry(main_frame, textvariable=tag_var, width=40)
-            tag_entry.pack(pady=10, fill=tk.X)
-            tag_entry.focus()  # Coloca o foco no campo de texto
-            
-            # Frame para os botões
-            button_frame = ttk.Frame(main_frame)
-            button_frame.pack(fill=tk.X, pady=10)
-            
-            # Função para confirmar e iniciar o processo
-            def confirm_add_client():
-                customer_id = tag_var.get().strip()
-                if not customer_id:
-                    messagebox.showwarning("Aviso", "Por favor, digite uma tag válida!")
-                    return
-                
-                # Fecha a janela de diálogo
-                customer_dialog.destroy()
-                
-                # Inicia a thread para adicionar o cliente
-                kit_thread = threading.Thread(
-                    target=lambda: self._run_kit_thread(kit_name, module_name, customer_id)
-                )
-                kit_thread.daemon = True
-                kit_thread.start()
-            
-            # Botão de confirmar
-            confirm_button = ttk.Button(
-                button_frame, 
-                text="Adicionar Cliente", 
-                command=confirm_add_client,
-                style="Accent.TButton"
-            )
-            confirm_button.pack(side=tk.RIGHT, padx=5)
-            
-            # Botão de cancelar
-            cancel_button = ttk.Button(
-                button_frame, 
-                text="Cancelar", 
-                command=customer_dialog.destroy
-            )
-            cancel_button.pack(side=tk.RIGHT, padx=5)
-            
-            # Permite que Enter confirme o diálogo
-            customer_dialog.bind("<Return>", lambda e: confirm_add_client())
-            customer_dialog.bind("<Escape>", lambda e: customer_dialog.destroy())
-            
-            # Espera a interação do usuário
-            return
-        
-        # Outros kits - fluxo normal
+        # Inicia a thread para executar o kit
         kit_thread = threading.Thread(target=lambda: self._run_kit_thread(kit_name, module_name))
         kit_thread.daemon = True
         kit_thread.start()
@@ -505,28 +482,6 @@ class HayDayTestApp:
             self.after_ids.append(after_id)
             return after_id
         return None
-        
-    def update_capture_status(self):
-        """Atualiza o status da captura na interface a cada segundo"""
-        if not self.ui_active:
-            return
-            
-        try:
-            from cerebro.capture import capture_thread, stop_capture_thread
-            
-            if capture_thread and capture_thread.is_alive() and not stop_capture_thread:
-                self.capture_status_label.config(text="Thread de captura: Ativa ✓", foreground="green")
-                queue_size = screenshot_queue.qsize()
-                self.capture_fps_label.config(text=f"Fila: {queue_size}")
-            else:
-                self.capture_status_label.config(text="Thread de captura: Inativa ✗", foreground="red")
-                self.capture_fps_label.config(text="Fila: 0")
-        except Exception as e:
-            # Ignora erros se a interface já estiver sendo destruída
-            pass
-            
-        # Reagenda para 1 segundo depois
-        self.schedule_ui_update(self.update_capture_status, 1000)
     
     def on_state_change(self, previous_state, new_state):
         """Callback chamado quando o estado do jogo muda"""
@@ -541,44 +496,6 @@ class HayDayTestApp:
         
         # Registra a mudança no console
         print(f"🔄 Estado alterado: {previous_state} → {new_state}")
-    
-    def update_transmission_status(self):
-        """Atualiza o status da transmissão na GUI - chamado pelo transmitter"""
-        # Ativado via callback com lock de thread
-        if self.ui_active:
-            try:
-                self.root.after(0, self._update_transmission_ui)
-            except Exception:
-                # Ignora erros se a interface já estiver sendo destruída
-                pass
-    
-    def _update_transmission_ui(self):
-        """Atualiza a UI da transmissão (thread-safe)"""
-        if not self.ui_active:
-            return
-            
-        try:
-            self.transmission_status_label.config(text="Transmissão: Ativa ✓", foreground="green")
-            self.transmission_last_active = time.time()
-        except Exception:
-            # Ignora erros se a interface já estiver sendo destruída
-            pass
-    
-    def check_transmission_timeout(self):
-        """Verifica se a transmissão está inativa há mais de 2 segundos"""
-        if not self.ui_active:
-            return
-            
-        try:
-            if hasattr(self, 'transmission_last_active'):
-                if time.time() - self.transmission_last_active > 2.0:
-                    self.transmission_status_label.config(text="Transmissão: Inativa", foreground="gray")
-        except Exception:
-            # Ignora erros se a interface já estiver sendo destruída
-            pass
-        
-        # Reagenda verificação
-        self.schedule_ui_update(self.check_transmission_timeout, 2000)
     
     def update_state_time(self):
         """Atualiza o tempo desde a última mudança de estado"""
@@ -598,7 +515,7 @@ class HayDayTestApp:
                 
                 # Atualiza o texto na interface
                 self.state_time_label.config(text=f"Tempo no estado: {duration_str}")
-        except Exception as e:
+        except Exception:
             # Ignora erros se a interface já estiver sendo destruída
             pass
         
@@ -616,7 +533,7 @@ class HayDayTestApp:
             
             if is_connected:
                 device_serial = adb_manager.get_target_serial()
-                self.status_label.config(text="Conectado ✓", foreground="green")
+                self.status_label.config(text="Conectado ✓", foreground="#a6e3a1")  # Verde
                 self.device_label.config(text=f"Dispositivo: {device_serial}")
                 
                 # Atualiza o atributo connected_device
@@ -631,7 +548,7 @@ class HayDayTestApp:
                     except Exception:
                         pass
             else:
-                self.status_label.config(text="Desconectado ✗", foreground="red")
+                self.status_label.config(text="Desconectado ✗", foreground="#f38ba8")  # Vermelho
                 self.device_label.config(text="Dispositivo: Nenhum")
                 self.connected_device = None
                 
@@ -644,15 +561,15 @@ class HayDayTestApp:
                     except Exception:
                         pass
             
-            # Exibe um toast de resultado
+            # Exibe log de resultado
             status_text = "conectado" if is_connected else "desconectado"
             self.log(f"🔍 Verificação de status: Emulador {status_text}")
         except Exception as e:
             self.log(f"❌ Erro ao verificar status: {e}")
-            self.status_label.config(text="Erro ✗", foreground="red")
+            self.status_label.config(text="Erro ✗", foreground="#f38ba8")  # Vermelho
         finally:
             # Reativa o botão
-            self.check_status_button.config(text="Verificar Status", state="normal")
+            self.check_status_button.config(text="Verificar Conexão", state="normal")
     
     def on_close(self):
         """Chamado quando a interface está sendo fechada"""
