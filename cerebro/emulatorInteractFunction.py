@@ -8,7 +8,6 @@ As funções implementadas aqui serão utilizadas nos arquivos de configuração
 import time
 from typing import Union, Optional, Tuple
 
-# Importar o gerenciador ADB para obter a instância do dispositivo
 from ADBmanager import adb_manager
 
 def get_device():
@@ -40,13 +39,11 @@ def click(x: Union[int, float], y: Union[int, float], duration: float = 0.05) ->
         return False
     
     try:
-        # Convertendo para inteiros garantindo que sejam coordenadas absolutas
         x_int = int(x)
         y_int = int(y)
         
-        # Usando o comando shell 'input tap' que funciona melhor com o emulador
         result = device.shell(f"input tap {x_int} {y_int}")
-        time.sleep(duration)  # Esperamos a duração especificada
+        time.sleep(duration)  
         return True
     except Exception as e:
         print(f"Erro ao realizar click em ({x}, {y}): {e}")
@@ -160,7 +157,6 @@ def get_screen_resolution() -> Optional[Tuple[int, int]]:
         return None
     
     try:
-        # Obtém dimensões da tela
         display_info = device.window_size()
         width, height = display_info
         return width, height
