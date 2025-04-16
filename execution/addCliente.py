@@ -142,8 +142,14 @@ def search_template(template_path: str, roi: List[int], max_attempts: int = 2, t
     Returns:
         bool: True se o template foi encontrado, False caso contrário
     """
+    # Importa aqui para evitar importação circular
+    from screenVision.screenshotMain import Screenshotter
+    
     template_matcher = TemplateMatcher(default_threshold=threshold)
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    
+    # Cria uma instância do Screenshotter para capturar screenshots diretamente
+    screenshotter = Screenshotter()
     
     # Garante que o caminho é absoluto
     if not os.path.isabs(template_path):
@@ -155,28 +161,17 @@ def search_template(template_path: str, roi: List[int], max_attempts: int = 2, t
     print(f"{Colors.YELLOW}[CLIENTE] BUSCANDO:{Colors.RESET} Template '{os.path.basename(template_path)}' (ROI: {roi})")
     
     for attempt in range(max_attempts):
-        # Tenta obter a última screenshot da fila
         try:
-            # Acessa a screenshot atual sem removê-la da fila (para não interferir com outros processos)
-            screenshot = screenshot_queue.queue[-1] if not screenshot_queue.empty() else None
+            # Captura uma nova screenshot diretamente (formato OpenCV - BGR)
+            print(f"{Colors.YELLOW}[CLIENTE] CAPTURANDO:{Colors.RESET} Nova screenshot para busca de template")
+            screenshot_cv = screenshotter.take_screenshot(use_pil=False)
             
-            if screenshot is None:
-                print(f"{Colors.YELLOW}[CLIENTE] AGUARDANDO:{Colors.RESET} Nenhuma screenshot disponível na fila")
+            if screenshot_cv is None:
+                print(f"{Colors.RED}[CLIENTE] ERRO:{Colors.RESET} Falha ao capturar screenshot")
                 wait(0.5)  # Pequena pausa antes da próxima tentativa
                 continue
             
-            # Converte para formato OpenCV (BGR) se a imagem já não estiver nesse formato
-            if isinstance(screenshot, np.ndarray):
-                # Verifica se a imagem está no formato BGR ou precisa ser convertida
-                if len(screenshot.shape) == 3 and screenshot.shape[2] == 3:
-                    screenshot_cv = screenshot
-                else:
-                    screenshot_cv = cv2.cvtColor(screenshot, cv2.COLOR_RGB2BGR)
-            else:
-                # Se for um objeto PIL Image
-                screenshot_cv = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
-            
-            # Busca o template
+            # Busca o template na screenshot capturada
             result = template_matcher.find_template(screenshot_cv, template_path, roi_tuple, threshold)
             
             if result and result.get('found', False):
