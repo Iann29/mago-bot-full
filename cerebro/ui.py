@@ -32,16 +32,15 @@ class HayDayTestApp:
         'Add Cliente': 'addCliente'
     }
     
-    def __init__(self, root, user_data=None):
+    def __init__(self, root):
         """
         Inicializa a interface gráfica.
         
         Args:
             root: Elemento raiz do Tkinter
-            user_data: Dados do usuário autenticado
         """
         self.root = root
-        self.root.title("@magodohayday")
+        self.root.title("HayDay Test Tool")
         self.root.geometry("800x700")
         self.root.resizable(True, True)
         
@@ -96,10 +95,6 @@ class HayDayTestApp:
         self.ui_active = True
         self.after_ids = []  # Lista para armazenar os IDs de chamadas after()
         
-        # Dados do usuário autenticado
-        self.user_data = user_data
-        self.html_id = user_data.get("html_id") if user_data else None
-        
         # Configurar a interface
         self.setup_ui()
         
@@ -121,10 +116,6 @@ class HayDayTestApp:
         
         # Título com informação do usuário
         title_text = "@magodohayday"
-        if self.html_id:
-            # Extrai nome do usuário do html_id (exemplo: "screen-ian" -> "Ian")
-            user_name = self.html_id.replace("screen-", "").capitalize()
-            title_text += f" - {user_name}"
             
         # Header com título e logo
         header_frame = ttk.Frame(main_frame)
@@ -235,12 +226,24 @@ class HayDayTestApp:
         self.schedule_ui_update(self.update_state_time, 1000)  # Atualiza tempo de estado a cada 1s
         
         # Configura o callback no transmissor
-        transmitter.set_transmission_callback(self.update_transmission_status)
+        self.setup_callbacks()
         
         # Registra callback para mudanças de estado
         from cerebro.state import register_state_callback
         register_state_callback(self.on_state_change)
         self.log("🔔✅ Callback de estado registrado na UI")
+    
+    def setup_callbacks(self):
+        # Configura os callbacks necessários
+        print("Configurando callbacks...")
+        
+        # Callback para transmissão (se habilitado)
+        if transmitter.transmission_enabled:
+            transmitter.set_transmission_callback(self.update_transmission_status)
+            
+        # Callback para mudança de estado
+        from cerebro.state import register_state_callback 
+        register_state_callback(self.on_state_change)
     
     def log(self, message):
         """Registra mensagem no console em vez da interface"""

@@ -15,7 +15,6 @@ if project_root not in sys.path:
 # Agora usamos diretamente o ADBManager em vez do adb_monitor
 # Esta abordagem elimina a duplicação de código
 from thread_terminator import wait_for_thread_termination, terminate_all_daemon_threads
-from auth.login_ui import start_login_window
 from ADBmanager import adb_manager
 from screenVision.screenshotMain import config as screenshot_config
 from cerebro.ui import HayDayTestApp, show_emulator_closed_message
@@ -69,43 +68,16 @@ def cleanup_app():
     
     print("Programa encerrado.")
 
-def start_app_with_auth():
+def run_main_app() -> int:
     """
-    Inicia a aplicação com autenticação.
+    Executa a aplicação principal.
     
     Returns:
         int: Código de saída da aplicação (0 para sucesso)
     """
-    # Mostra janela de login e aguarda autenticação
-    print("Iniciando HayDay Test Tool")
-    print("Iniciando autenticação...")
-    
-    # Invoca o sistema de autenticação
-    user_data = start_login_window()
-    
-    # Se autenticação falhou, encerra
-    if not user_data:
-        print("Autenticação falhou. Encerrando aplicação.")
-        return 1
-    
-    # Autenticação bem-sucedida, continua com a aplicação
-    print(f"Usuário {user_data['username']} autenticado com sucesso!")
-    
-    # Inicia a aplicação principal
-    return run_main_app(user_data)
-
-def run_main_app(user_data: Dict[str, Any]) -> int:
-    """
-    Executa a aplicação principal após autenticação bem-sucedida.
-    
-    Args:
-        user_data: Dados do usuário autenticado
-        
-    Returns:
-        int: Código de saída da aplicação (0 para sucesso)
-    """
+    # Remove configuration log
     # Exibe configurações
-    print(f"Configurações: FPS={TARGET_FPS} (do screenshotCFG.json)")
+    # print(f"Configurações: FPS={TARGET_FPS} (do screenshotCFG.json)")
     
     # Exibe mensagem se o emulador estiver fechado
     retry_count = 0
@@ -120,16 +92,12 @@ def run_main_app(user_data: Dict[str, Any]) -> int:
                 # Inicializa a aplicação
                 if initialize_app():
                     try:
-                        # Identifica o usuário para transmissão
-                        username = user_data.get('html_id', user_data.get('username', ''))
-                        print(f"Identificador de tela para transmissão: {username}")
-                        
-                        # Inicia a thread de captura com username
-                        start_screenshot_capture(TARGET_FPS, device, username)
+                        # Inicia a thread de captura
+                        start_screenshot_capture(TARGET_FPS, device)
                         
                         # Cria a interface gráfica
                         root = tk.Tk()
-                        app = HayDayTestApp(root, user_data)
+                        app = HayDayTestApp(root)
                         
                         # Configuração do monitor ADB - deve ser feita APÓS criar a app
                         setup_adb_monitor_in_app(app)

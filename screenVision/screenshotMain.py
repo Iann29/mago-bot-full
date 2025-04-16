@@ -207,16 +207,14 @@ class Screenshotter:
                      return None
         return None # Se não conseguiu imagem
 
-
-    def take_screenshot(self, use_pil: bool = False, username: Optional[str] = None, transmit: bool = True) -> Optional[Union[Image.Image, np.ndarray]]:
+    def take_screenshot(self, use_pil: bool = False, transmit: bool = True) -> Optional[Union[Image.Image, np.ndarray]]:
         """
         Tira uma screenshot usando o método configurado. Salva se debug_mode=True.
-        Se transmit=True e username fornecido, envia a imagem para a VPS.
+        Se transmit=True, tenta enviar a imagem para a VPS (se habilitado no transmissor).
 
         Args:
             use_pil (bool): Define o formato de retorno (PIL ou OpenCV). Padrão False (OpenCV).
-            username (str, opcional): Username associado à captura para identificação na VPS.
-            transmit (bool): Se True, transmite a imagem para a VPS. Padrão True.
+            transmit (bool): Se True, tenta transmitir a imagem para a VPS. Padrão True.
 
         Returns:
             PIL.Image or numpy.ndarray or None: A imagem capturada ou None se falhar.
@@ -238,17 +236,9 @@ class Screenshotter:
             
             # Transmite a imagem se solicitado - sempre deve tentar enviar
             if transmit and transmitter.transmission_enabled:
-                # Define o ID para identificação (usa username se fornecido, senão usa "screen")
-                screen_id = username if username else "screen"
-                
                 # O callback de transmissão cuidará de atualizar a GUI
                 # A mensagem de log foi removida para evitar flood no terminal
                 
-                # Garante que o transmissor tem o username configurado
-                if username:
-                    transmitter.set_username(username)
-                
-                # Envia a imagem para a fila de transmissão
-                transmitter.queue_image(image_data, screen_id)
+                transmitter.add_to_queue(image_data)
             
         return image_data

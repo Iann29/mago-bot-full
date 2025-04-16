@@ -20,7 +20,7 @@ capture_thread = None
 # Evento que sinaliza a parada da thread (mais responsivo que uma flag booleana)
 stop_capture_event = threading.Event()
 
-def capture_worker(fps: float, adb_device: AdbDevice, username: str = None):
+def capture_worker(fps: float, adb_device: AdbDevice):
     """Função que roda em uma thread separada para capturar screenshots."""
     global stop_capture_thread, stop_capture_event
     
@@ -28,17 +28,13 @@ def capture_worker(fps: float, adb_device: AdbDevice, username: str = None):
     # A instância do Screenshotter é local para esta thread
     screenshotter = Screenshotter(adb_device=adb_device)
     
-    # Configura o transmissor com o nome de usuário
-    if username:
-        transmitter.set_username(username)
-        print(f"Transmissor configurado para usuário: {username}")
+    # Remove log
+    # print(f"Thread de captura iniciada, capturando a ~{fps} FPS")
     
     capture_interval = 1.0 / fps
     last_capture_time = time.time()
     consecutive_failures = 0  # Contador de falhas consecutivas
     max_failures = 2  # Número máximo de falhas antes de parar a thread
-    
-    print(f"Thread de captura iniciada, capturando a ~{fps} FPS")
 
     while not stop_capture_thread and not stop_capture_event.is_set():
         # Tenta capturar e colocar na fila
@@ -49,7 +45,7 @@ def capture_worker(fps: float, adb_device: AdbDevice, username: str = None):
                 time_before_capture = time.time() 
                 
                 # Tira screenshot (padrão OpenCV/BGR) e transmite para VPS
-                screenshot = screenshotter.take_screenshot(use_pil=False, username=username, transmit=True)
+                screenshot = screenshotter.take_screenshot(use_pil=False, transmit=True)
                 
                 time_after_capture = time.time() 
                 capture_duration = time_after_capture - time_before_capture
@@ -98,14 +94,13 @@ def capture_worker(fps: float, adb_device: AdbDevice, username: str = None):
 
     print("Thread de captura encerrando...")
 
-def start_screenshot_capture(fps: float, device: AdbDevice, username: str = None) -> Optional[threading.Thread]:
+def start_screenshot_capture(fps: float, device: AdbDevice) -> Optional[threading.Thread]:
     """
     Inicia a captura de screenshots em thread separada.
     
     Args:
         fps: Taxa de frames por segundo desejada
         device: Dispositivo ADB conectado
-        username: Nome de usuário para identificação na transmissão
         
     Returns:
         Thread de captura ou None se falhar
@@ -119,7 +114,7 @@ def start_screenshot_capture(fps: float, device: AdbDevice, username: str = None
     # Cria uma nova thread para a captura de screenshots
     capture_thread = threading.Thread(
         target=capture_worker,
-        args=(fps, device, username),
+        args=(fps, device),
         daemon=True
     )
     
