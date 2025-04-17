@@ -269,6 +269,35 @@ def search_masked_template(template_path: str, roi: List[int], max_attempts: int
     print(f"{Colors.RED}[LUCRO] ERRO:{Colors.RESET} Template com máscara não encontrado após {max_attempts} tentativas")
     return False
 
+# Usar para detectar quando o estado muda durante a execução
+state_changed_flag = False
+last_detected_state_id = None
+pending_restart = False
+
+def on_state_change_during_execution(previous_state, new_state_name):
+    """
+    Função de callback para detectar mudanças de estado durante a execução.
+    
+    Args:
+        previous_state: Estado anterior
+        new_state_name: Nome do novo estado
+    """
+    global state_changed_flag, last_detected_state_id, pending_restart
+    
+    # Obtém o ID do novo estado usando a função global
+    from cerebro.state import get_current_state_id
+    
+    # Obtém o ID do estado atual
+    last_detected_state_id = get_current_state_id()
+    
+    # Sinaliza que o estado mudou durante a execução
+    state_changed_flag = True
+    
+    # Se o estado mudou para aba_tutorial_colher, sinaliza para reiniciar a execução
+    if last_detected_state_id == "aba_tutorial_colher":
+        print(f"{Colors.YELLOW}[LUCRO] DETECTADO:{Colors.RESET} O popup de tutorial apareceu! Interrompendo ação atual...")
+        pending_restart = True
+
 def verificar_lucro() -> bool:
     """
     Verifica o lucro da conta no HayDay.
@@ -276,7 +305,25 @@ def verificar_lucro() -> bool:
     Returns:
         bool: True se a operação foi concluída com sucesso, False caso contrário
     """
+    global state_changed_flag, last_detected_state_id, pending_restart
+    state_changed_flag = False
+    last_detected_state_id = None
+    pending_restart = False
+    
+    # Flag para controlar se o callback foi registrado
+    callback_registered = False
+    
     try:
+        # Registra o callback para detectar mudanças de estado durante a execução
+        from cerebro.state import register_state_callback
+        
+        try:
+            # Registra o callback
+            register_state_callback(on_state_change_during_execution)
+            callback_registered = True
+        except Exception as e:
+            print(f"{Colors.YELLOW}[LUCRO] ALERTA:{Colors.RESET} Não foi possível registrar o callback de estado: {e}")
+
         # Carrega a configuração
         config = load_config()
         if not config:
@@ -295,41 +342,87 @@ def verificar_lucro() -> bool:
             print(f"{Colors.RED}[LUCRO] ERRO:{Colors.RESET} Configuração de estados não encontrada")
             return False
             
-        # Obtém o estado atual
-        current_state_id = get_current_state_id()
-        current_state = get_current_state()
+        # Loop principal - permite reiniciar a execução se o estado mudar para aba_tutorial_colher
+        max_restarts = 3  # Número máximo de reinicializações permitidas
+        restart_count = 0
         
-        print(f"{Colors.BLUE}[LUCRO] INFO:{Colors.RESET} Estado atual: {current_state} (ID: {current_state_id})")
-        
-        # Verifica se há uma configuração para o estado atual
-        if current_state_id in states_config:
-            state_actions = states_config[current_state_id].get("actions", [])
+        while restart_count <= max_restarts:
+            # Reinicia as flags
+            state_changed_flag = False
+            pending_restart = False
             
-            if not state_actions:
-                print(f"{Colors.YELLOW}[LUCRO] ALERTA:{Colors.RESET} Nenhuma ação definida para o estado '{current_state}'")
-                return False
-                
-            print(f"{Colors.BLUE}[LUCRO] INFO:{Colors.RESET} Executando {len(state_actions)} ações para o estado '{current_state}'")
+            # Obtém o estado atual
+            current_state_id = get_current_state_id()
+            current_state = get_current_state()
             
-            # Executa cada ação configurada para o estado atual
-            for i, action in enumerate(state_actions):
-                print(f"{Colors.BLUE}[LUCRO] AÇÃO {i+1}/{len(state_actions)}:{Colors.RESET} {action.get('description', 'Sem descrição')}")
+            print(f"{Colors.BLUE}[LUCRO] INFO:{Colors.RESET} Estado atual: {current_state} (ID: {current_state_id})")
+            
+            # Verifica se há uma configuração para o estado atual
+            if current_state_id in states_config:
+                state_actions = states_config[current_state_id].get("actions", [])
                 
-                if not execute_action(action):
-                    print(f"{Colors.RED}[LUCRO] ERRO:{Colors.RESET} Falha ao executar ação {i+1}")
+                if not state_actions:
+                    print(f"{Colors.YELLOW}[LUCRO] ALERTA:{Colors.RESET} Nenhuma ação definida para o estado '{current_state}'")
                     return False
                     
-            print(f"{Colors.GREEN}[LUCRO] SUCESSO:{Colors.RESET} Verificação de lucro concluída com sucesso")
-            return True
-        else:
-            print(f"{Colors.YELLOW}[LUCRO] ALERTA:{Colors.RESET} Não há configuração para o estado atual '{current_state}' (ID: {current_state_id})")
-            states_available = list(states_config.keys())
-            print(f"{Colors.BLUE}[LUCRO] INFO:{Colors.RESET} Estados configurados disponíveis: {states_available}")
+                print(f"{Colors.BLUE}[LUCRO] INFO:{Colors.RESET} Executando {len(state_actions)} ações para o estado '{current_state}'")
+                
+                # Executa cada ação configurada para o estado atual
+                for i, action in enumerate(state_actions):
+                    print(f"{Colors.BLUE}[LUCRO] AÇÃO {i+1}/{len(state_actions)}:{Colors.RESET} {action.get('description', 'Sem descrição')}")
+                    
+                    # Executa a ação atual
+                    if not execute_action(action):
+                        print(f"{Colors.RED}[LUCRO] ERRO:{Colors.RESET} Falha ao executar ação {i+1}")
+                        return False
+                    
+                    # Verifica se o popup do tutorial apareceu durante a ação
+                    if pending_restart:
+                        print(f"{Colors.YELLOW}[LUCRO] REINICIANDO:{Colors.RESET} Popup do tutorial detectado, reiniciando execução...")
+                        restart_count += 1
+                        break
+                
+                # Se todas as ações foram executadas sem necessidade de reiniciar, finaliza com sucesso
+                if not pending_restart:
+                    print(f"{Colors.GREEN}[LUCRO] SUCESSO:{Colors.RESET} Verificação de lucro concluída com sucesso")
+                    return True
+                # Se o loop foi interrompido devido ao popup, continua para a próxima iteração
+                else:
+                    # Aguarda um momento para garantir que o sistema reconheça o novo estado
+                    wait(0.5)
+                    continue
+            else:
+                print(f"{Colors.YELLOW}[LUCRO] ALERTA:{Colors.RESET} Não há configuração para o estado atual '{current_state}' (ID: {current_state_id})")
+                states_available = list(states_config.keys())
+                print(f"{Colors.BLUE}[LUCRO] INFO:{Colors.RESET} Estados configurados disponíveis: {states_available}")
+                return False
+            
+            # Se chegou aqui, é porque todas as ações foram executadas com sucesso
+            break
+            
+        # Verifica se excedeu o número máximo de tentativas
+        if restart_count > max_restarts:
+            print(f"{Colors.RED}[LUCRO] ERRO:{Colors.RESET} Excedeu o número máximo de reinicializações ({max_restarts})")
             return False
+            
+        return True
             
     except Exception as e:
         print(f"{Colors.RED}[LUCRO] ERRO:{Colors.RESET} Falha geral na verificação de lucro: {e}")
         return False
+    finally:
+        # Remove o callback para evitar problemas
+        if callback_registered:
+            try:
+                from cerebro.state import register_state_callback
+                # Como não temos unregister_state_callback, registramos um callback vazio para substituir
+                # O callback anterior será sobrescrito, o que efetivamente o desregistra
+                def empty_callback(prev, new):
+                    pass
+                register_state_callback(empty_callback)
+                print(f"{Colors.BLUE}[LUCRO] INFO:{Colors.RESET} Callback de estado removido")
+            except Exception as e:
+                print(f"{Colors.YELLOW}[LUCRO] ALERTA:{Colors.RESET} Não foi possível remover o callback: {e}")
 
 def run() -> bool:
     """
@@ -354,4 +447,5 @@ def run() -> bool:
 
 # Para execução direta
 if __name__ == "__main__":
+    # Executa o teste (o callback já é registrado dentro da função verificar_lucro)
     run()

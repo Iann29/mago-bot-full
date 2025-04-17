@@ -1,6 +1,68 @@
 {
   "verificarLucro": {
     "states": {
+      "aba_tutorial_colher": {
+        "actions": [
+          {
+            "type": "wait",
+            "params": [7.0],
+            "description": "Espera 7s enquanto o tutorial é mostrado"
+          },
+          {
+            "type": "click",
+            "params": [446, 308],
+            "description": "Clica para fechar o tutorial"
+          },
+          {
+            "type": "wait",
+            "params": [1.2],
+            "description": "Espera 1.2s"
+          },
+          {
+            "type": "verify_state",
+            "params": ["book_interface", 2],
+            "description": "Verifica se o estado mudou para book_interface (2 tentativas)"
+          },
+          {
+            "type": "click",
+            "params": [619, 382],
+            "description": "Clica para fechar o menu do livro"
+          },
+          {
+            "type": "wait",
+            "params": [0.2],
+            "description": "Espera 200ms"
+          },
+          {
+            "type": "searchTemplate",
+            "params": ["dataset\\haydayBuildings\\banca.png", [3, 34, 342, 379]],
+            "attempts": 3,
+            "threshold": 0.9,
+            "useMask": true,
+            "description": "Busca pela banca utilizando máscara"
+          },
+          {
+            "type": "wait",
+            "params": [0.5],
+            "description": "Espera 500ms"
+          },
+          {
+            "type": "click",
+            "params": [176, 209],
+            "description": "Clica na primeira posição para verificar lucro"
+          },
+          {
+            "type": "wait",
+            "params": [0.050],
+            "description": "Espera 50ms"
+          },
+          {
+            "type": "click",
+            "params": [139, 229],
+            "description": "Clica na segunda posição para verificar lucro"
+          }
+        ]
+      },
       "jogo_aberto": {
         "actions": [
           {
