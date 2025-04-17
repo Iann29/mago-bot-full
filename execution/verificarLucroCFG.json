@@ -32,6 +32,203 @@
             "description": "Clica na segunda posição para verificar lucro"
           }
         ]
+      },
+      "inside_shop": {
+        "actions": [
+          {
+            "type": "click",
+            "params": [480, 131],
+            "description": "Clica no botão de fechar a loja"
+          },
+          {
+            "type": "wait",
+            "params": [0.1],
+            "description": "Espera 100ms"
+          },
+          {
+            "type": "searchTemplate",
+            "params": ["dataset\\haydayBuildings\\banca.png", [3, 34, 342, 379]],
+            "attempts": 3,
+            "threshold": 0.9,
+            "useMask": true,
+            "description": "Busca pela banca utilizando máscara"
+          },
+          {
+            "type": "wait",
+            "params": [0.5],
+            "description": "Espera 500ms"
+          },
+          {
+            "type": "click",
+            "params": [176, 209],
+            "description": "Clica na primeira posição para verificar lucro"
+          },
+          {
+            "type": "wait",
+            "params": [0.050],
+            "description": "Espera 50ms"
+          },
+          {
+            "type": "click",
+            "params": [139, 229],
+            "description": "Clica na segunda posição para verificar lucro"
+          }
+        ]
+      },
+      "book_interface": {
+        "actions": [
+          {
+            "type": "click",
+            "params": [617, 381],
+            "description": "Fechar menu livro"
+          },
+          {
+            "type": "wait",
+            "params": [1.0],
+            "description": "Espera 1s"
+          },
+          {
+            "type": "searchTemplate",
+            "params": ["dataset\\haydayBuildings\\banca.png", [3, 34, 342, 379]],
+            "attempts": 3,
+            "threshold": 0.9,
+            "useMask": true,
+            "description": "Busca pela banca utilizando máscara"
+          },
+          {
+            "type": "wait",
+            "params": [0.5],
+            "description": "Espera 500ms"
+          },
+          {
+            "type": "click",
+            "params": [176, 209],
+            "description": "Clica na primeira posição para verificar lucro"
+          },
+          {
+            "type": "wait",
+            "params": [0.050],
+            "description": "Espera 50ms"
+          },
+          {
+            "type": "click",
+            "params": [139, 229],
+            "description": "Clica na segunda posição para verificar lucro"
+          }
+        ]
+      },
+      "menu_add_client": {
+        "actions": [
+          {
+            "type": "click",
+            "params": [518, 79],
+            "description": "Fechar menu"
+          },
+          {
+            "type": "wait",
+            "params": [0.050],
+            "description": "Espera 50ms"
+          },
+          {
+            "type": "click",
+            "params": [619, 380],
+            "description": "Clica no botão de retorno"
+          },
+          {
+            "type": "wait",
+            "params": [1.0],
+            "description": "Espera 1s"
+          },
+          {
+            "type": "searchTemplate",
+            "params": ["dataset\\haydayBuildings\\banca.png", [3, 34, 342, 379]],
+            "attempts": 3,
+            "threshold": 0.9,
+            "useMask": true,
+            "description": "Busca pela banca utilizando máscara"
+          },
+          {
+            "type": "wait",
+            "params": [0.5],
+            "description": "Espera 500ms"
+          },
+          {
+            "type": "click",
+            "params": [176, 209],
+            "description": "Clica na primeira posição para verificar lucro"
+          },
+          {
+            "type": "wait",
+            "params": [0.050],
+            "description": "Espera 50ms"
+          },
+          {
+            "type": "click",
+            "params": [139, 229],
+            "description": "Clica na segunda posição para verificar lucro"
+          }
+        ]
+      },
+      "item_shop_list": {
+        "actions": [
+          {
+            "type": "click",
+            "params": [139, 231],
+            "description": "Clica para verificar lucro"
+          }
+        ]
+      },
+      "fazenda_cliente": {
+        "actions": [
+          {
+            "type": "click",
+            "params": [23, 449],
+            "description": "Voltar para a fazenda"
+          },
+          {
+            "type": "wait",
+            "params": [2.5],
+            "description": "Espera 2.5s"
+          },
+          {
+            "type": "click",
+            "params": [617, 381],
+            "description": "Fechar menu livro"
+          },
+          {
+            "type": "wait",
+            "params": [1.0],
+            "description": "Espera 1s"
+          },
+          {
+            "type": "searchTemplate",
+            "params": ["dataset\\haydayBuildings\\banca.png", [3, 34, 342, 379]],
+            "attempts": 3,
+            "threshold": 0.9,
+            "useMask": true,
+            "description": "Busca pela banca utilizando máscara"
+          },
+          {
+            "type": "wait",
+            "params": [0.5],
+            "description": "Espera 500ms"
+          },
+          {
+            "type": "click",
+            "params": [176, 209],
+            "description": "Clica na primeira posição para verificar lucro"
+          },
+          {
+            "type": "wait",
+            "params": [0.050],
+            "description": "Espera 50ms"
+          },
+          {
+            "type": "click",
+            "params": [139, 229],
+            "description": "Clica na segunda posição para verificar lucro"
+          }
+        ]
       }
     }
   }

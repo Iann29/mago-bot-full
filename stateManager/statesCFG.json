@@ -63,6 +63,14 @@
       "image_path": "dataset/imageStates/fazendacliente.png",
       "use_mask": false,
       "priority": ["menu_add_client"]
+    },
+    "aba_tutorial_colher":{
+      "display_name": "Tutorial lixo (Colher)",
+      "roi": [358, 123, 104, 74],
+      "confidence": 0.75,
+      "image_path": "dataset/imageStates/tutorialcolher.png",
+      "use_mask": false,
+      "priority": []
     }
   }
 }
