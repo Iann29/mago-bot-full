@@ -406,29 +406,48 @@ class StateManager:
         # Lista de estados detectados ordenados por confiança
         detected_states = sorted(matches.keys(), key=lambda s: matches[s]['confidence'], reverse=True)
         
-        # Verifica sistema de prioridades
-        # Para cada estado detectado, verifica se ele tem prioridade sobre os outros
+        # Cria um grafo dirigido de prioridades para os estados detectados
+        # priority_graph[a][b] = True significa que 'a' tem prioridade sobre 'b'
+        priority_graph = {state: set() for state in detected_states}
+        
+        # Preenche o grafo baseado nas configurações de prioridade
         for state_id in detected_states:
             config = matches[state_id]['config']
             
-            # Verifica se este estado tem prioridade sobre algum outro estado detectado
-            has_priority = True
+            # Se um estado A está na lista de prioridade de B, isso significa que A tem prioridade sobre B
+            for other_state in detected_states:
+                if other_state == state_id:
+                    continue  # Pula comparação com o próprio estado
+                    
+                other_config = matches[other_state]['config']
+                
+                # Se state_id está na lista de prioridade de other_state, other_state cede prioridade
+                if state_id in other_config.priority:
+                    priority_graph[state_id].add(other_state)
+        
+        # Encontra o estado que não é dominado por nenhum outro
+        for state_id in detected_states:
+            is_dominant = True
             
-            # Se não tem prioridades definidas, usa apenas a confiança
-            if not config.priority:
-                return detected_states[0]  # Retorna o estado com maior confiança
-            
-            # Verifica se todos os estados de prioridade foram detectados
-            for priority_state in config.priority:
-                if priority_state in detected_states:
-                    has_priority = False
+            for other_state in detected_states:
+                if other_state == state_id:
+                    continue
+                    
+                # Se outro estado tem prioridade sobre este, este não é dominante
+                if state_id in priority_graph[other_state]:
+                    is_dominant = False
                     break
             
-            # Se tem prioridade sobre todos os outros estados detectados, é o vencedor
-            if has_priority:
+            # Se este estado não é dominado por nenhum outro, retorna ele
+            if is_dominant:
+                if self.verbose:
+                    print(f"Estado {state_id} escolhido por prioridade.")
                 return state_id
         
-        # Se chegou aqui, retorna o estado com maior confiança
+        # Se houver um ciclo de prioridades ou não for possível determinar um estado dominante,
+        # retorna o estado com maior confiança
+        if self.verbose:
+            print(f"Nenhum estado dominante encontrado, usando confiança. Estado: {detected_states[0]}")
         return detected_states[0]
     
     def get_current_state(self) -> str:

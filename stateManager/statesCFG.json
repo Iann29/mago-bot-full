@@ -14,7 +14,7 @@
       "confidence": 0.75,
       "image_path": "dataset/imageStates/jogoaberto.png",
       "use_mask": false,
-      "priority": []
+      "priority": ["inside_shop", "fazenda_cliente", "item_shop_list"]
     },
     "inside_shop":{
       "display_name": "Loja aberta",
@@ -38,7 +38,7 @@
       "confidence": 0.75,
       "image_path": "dataset/imageStates/bookmenu.png",
       "use_mask": false,
-      "priority": ["jogo_aberto", "menu_add_client"]
+      "priority": ["jogo_aberto", "menu_add_client", "fazenda_cliente"]
     },
     "menu_add_client":{
       "display_name": "Menu de adicionar cliente",
@@ -62,7 +62,7 @@
       "confidence": 0.75,
       "image_path": "dataset/imageStates/fazendacliente.png",
       "use_mask": false,
-      "priority": []
+      "priority": ["menu_add_client"]
     }
   }
 }
