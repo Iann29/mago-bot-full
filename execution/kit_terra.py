@@ -343,11 +343,53 @@ def search_template(template_path: str, roi: List[int], max_attempts: int = 2, t
                 position = result.get('position', (0, 0))
                 print(f"{Colors.GREEN}[TERRA] SUCESSO:{Colors.RESET} Template {'com máscara ' if use_mask else ''}encontrado na posição {position} (confiança: {confidence:.4f})")
                 
-                # Clica na posição encontrada
+                # Tentativas de clique com deslocamentos variados
+                # Primeiro tenta na posição original
+                print(f"{Colors.BLUE}[TERRA] INFO:{Colors.RESET} Tentando clique na posição original {position}")
                 success = click(position[0], position[1])
+                
                 if success:
-                    print(f"{Colors.GREEN}[TERRA] SUCESSO:{Colors.RESET} Clique na posição do template")
-                    return True
+                    # Aguarda um pouco para ver se o estado muda para inside_shop
+                    print(f"{Colors.YELLOW}[TERRA] AGUARDANDO:{Colors.RESET} Verificando se o estado mudou após o clique...")
+                    wait(1.0)  # Aguarda 1 segundo para o estado mudar após clique inicial
+                    
+                    # Verifica se o estado atual é inside_shop
+                    current_state_id = get_current_state_id()
+                    if current_state_id == "inside_shop":
+                        print(f"{Colors.GREEN}[TERRA] SUCESSO:{Colors.RESET} Loja aberta com sucesso!")
+                        return True
+                    
+                    # Se não mudou para inside_shop, tenta deslocamentos
+                    print(f"{Colors.YELLOW}[TERRA] AVISO:{Colors.RESET} Clique na posição original não abriu a loja. Tentando deslocamentos...")
+                    
+                    # Lista de deslocamentos a tentar (dx, dy)
+                    offsets = [
+                        (0, 10),   # 10px abaixo
+                        (0, -10),  # 10px acima
+                        (10, 0),   # 10px à direita
+                        (-10, 0),  # 10px à esquerda
+                        (10, 10),  # diagonal inferior direita
+                        (-10, 10), # diagonal inferior esquerda
+                        (10, -10), # diagonal superior direita
+                        (-10, -10) # diagonal superior esquerda
+                    ]
+                    
+                    # Tenta cada deslocamento
+                    for i, (dx, dy) in enumerate(offsets):
+                        new_x, new_y = position[0] + dx, position[1] + dy
+                        print(f"{Colors.YELLOW}[TERRA] TENTATIVA {i+1}/{len(offsets)}:{Colors.RESET} Clicando em posição deslocada ({new_x}, {new_y})")
+                        
+                        if click(new_x, new_y):
+                            # Aguarda por 1.4 segundos para ver se o estado muda (tempo ajustado conforme solicitado)
+                            print(f"{Colors.YELLOW}[TERRA] AGUARDANDO:{Colors.RESET} Verificando por 1.4s se o estado mudou após clique com deslocamento...")
+                            wait(1.4)  # Aguarda 1.4 segundos para o estado mudar após cliques com deslocamento
+                            current_state_id = get_current_state_id()
+                            if current_state_id == "inside_shop":
+                                print(f"{Colors.GREEN}[TERRA] SUCESSO:{Colors.RESET} Loja aberta com sucesso após tentativa com deslocamento!")
+                                return True
+                    
+                    print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Todas as tentativas de clique falharam em abrir a loja")
+                    return False
                 else:
                     print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Falha ao clicar na posição {position}")
                     return False
