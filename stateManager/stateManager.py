@@ -204,11 +204,29 @@ class StateManager:
     
     def _notify_state_change(self, previous_state: str, new_state: str) -> None:
         """Notifica todos os callbacks registrados sobre a mudança de estado"""
-        for callback in self._state_change_callbacks:
+        # Cria uma cópia da lista para evitar problemas se a lista original for modificada durante a iteração
+        callbacks_to_execute = self._state_change_callbacks.copy()
+        
+        # Filtra callbacks inválidos (None ou não-calláveis)
+        invalid_callbacks = []
+        
+        for callback in callbacks_to_execute:
             try:
+                # Verifica se o callback ainda é uma função válida antes de chamá-lo
+                if callback is None or not callable(callback):
+                    print(f"⚠️ Callback inválido detectado e será removido.")
+                    invalid_callbacks.append(callback)
+                    continue
+                    
+                # Chama o callback se for válido
                 callback(previous_state, new_state)
             except Exception as e:
                 print(f"❌ Erro ao executar callback de mudança de estado: {e}")
+        
+        # Remove callbacks inválidos da lista original
+        for invalid in invalid_callbacks:
+            if invalid in self._state_change_callbacks:
+                self._state_change_callbacks.remove(invalid)
     
     def start_monitoring(self, screenshot_queue) -> None:
         """
