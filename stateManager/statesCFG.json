@@ -55,6 +55,14 @@
       "image_path": "dataset/imageStates/hdagent.png",
       "use_mask": false,
       "priority": []
+    },
+    "fazenda_cliente":{
+      "display_name": "Visitando fazenda do cliente",
+      "roi": [0, 346, 111, 134],
+      "confidence": 0.75,
+      "image_path": "dataset/imageStates/fazendacliente.png",
+      "use_mask": false,
+      "priority": []
     }
   }
 }
