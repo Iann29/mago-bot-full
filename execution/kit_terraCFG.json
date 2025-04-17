@@ -1,10 +1,158 @@
 {
-    "nome": "Kit Terra",
-    "descricao": "Automação de operações da terra/fazenda no HayDay",
-    "versao": "1.0",
-    "configuracoes": {
-        "tempo_entre_acoes": 1.5,
-        "tentativas_maximas": 3
+  "kit_terra": {
+    "states": {
+      "jogo_aberto": {
+        "actions": [
+          {
+            "type": "searchTemplate",
+            "params": ["dataset\\haydayBuildings\\banca.png", [3, 34, 342, 379]],
+            "attempts": 3,
+            "threshold": 0.9,
+            "useMask": true,
+            "description": "Busca pela banca utilizando máscara"
+          },
+          {
+            "type": "wait",
+            "params": [0.5],
+            "description": "Espera 500ms"
+          }
+        ]
+      },
+      "inside_shop": {
+        "actions": [
+          {
+            "type": "scan_empty_boxes",
+            "params": ["dataset\\others\\emptybox.png", 0.85],
+            "description": "Verifica quais caixas estão vazias"
+          }
+        ]
+      },
+      "book_interface": {
+        "actions": [
+          {
+            "type": "click",
+            "params": [619, 379],
+            "description": "Clica para fechar a interface do livro"
+          },
+          {
+            "type": "wait",
+            "params": [0.05],
+            "description": "Espera 50ms"
+          },
+          {
+            "type": "searchTemplate",
+            "params": ["dataset\\haydayBuildings\\banca.png", [3, 34, 342, 379]],
+            "attempts": 3,
+            "threshold": 0.9,
+            "useMask": true,
+            "description": "Busca pela banca utilizando máscara"
+          },
+          {
+            "type": "wait",
+            "params": [0.5],
+            "description": "Espera 500ms"
+          }
+        ]
+      },
+      "menu_add_client": {
+        "actions": [
+          {
+            "type": "click",
+            "params": [518, 80],
+            "description": "Clica para fechar o menu de cliente"
+          },
+          {
+            "type": "wait",
+            "params": [0.5],
+            "description": "Espera 500ms"
+          },
+          {
+            "type": "click",
+            "params": [619, 379],
+            "description": "Clica para fechar a interface do livro"
+          },
+          {
+            "type": "wait",
+            "params": [0.05],
+            "description": "Espera 50ms"
+          },
+          {
+            "type": "searchTemplate",
+            "params": ["dataset\\haydayBuildings\\banca.png", [3, 34, 342, 379]],
+            "attempts": 3,
+            "threshold": 0.9,
+            "useMask": true,
+            "description": "Busca pela banca utilizando máscara"
+          },
+          {
+            "type": "wait",
+            "params": [0.5],
+            "description": "Espera 500ms"
+          }
+        ]
+      },
+      "item_shop_list": {
+        "actions": [
+          {
+            "type": "click",
+            "params": [488, 125],
+            "description": "Clica para fechar a lista de itens da loja"
+          },
+          {
+            "type": "wait",
+            "params": [0.5],
+            "description": "Espera 500ms"
+          }
+        ]
+      },
+      "fazenda_cliente": {
+        "actions": [
+          {
+            "type": "click",
+            "params": [24, 450],
+            "description": "Clica para voltar à fazenda principal"
+          },
+          {
+            "type": "wait",
+            "params": [1.2],
+            "description": "Espera 1.2 segundos"
+          },
+          {
+            "type": "check_multiple_states",
+            "params": ["book_interface", "jogo_aberto"],
+            "attempts": 8,
+            "wait_time": 0.8,
+            "description": "Verifica se estamos no menu do livro ou na fazenda principal"
+          }
+        ]
+      }
     },
-    "templates": []
+    "box_positions": {
+      "1": [177, 207],
+      "2": [177, 280],
+      "3": [246, 207],
+      "4": [246, 280],
+      "5": [315, 207],
+      "6": [315, 282],
+      "7": [384, 207],
+      "8": [384, 280],
+      "9": [452, 207],
+      "10": [452, 280]
+    },
+    "box_detection": {
+      "individual_roi": [
+        [142, 171, 69, 79],  
+        [144, 247, 67, 73],  
+        [211, 173, 70, 72],  
+        [214, 251, 68, 65],  
+        [283, 175, 61, 68],  
+        [283, 252, 65, 72],  
+        [353, 176, 63, 64],  
+        [349, 252, 65, 60],  
+        [422, 177, 62, 67],  
+        [419, 252, 65, 56]   
+      ],
+      "full_area_roi": [137, 169, 356, 153]
+    }
+  }
 }
