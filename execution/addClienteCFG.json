@@ -400,6 +400,27 @@
             "description": "Clica no botão de retorno"
           }
         ]
+      },
+      "fazenda_cliente": {
+        "actions": [
+          {
+            "type": "click",
+            "params": [24, 450],
+            "description": "Clica para voltar à fazenda principal"
+          },
+          {
+            "type": "wait",
+            "params": [1.2],
+            "description": "Espera 1.2 segundos"
+          },
+          {
+            "type": "check_multiple_states",
+            "params": ["book_interface", "jogo_aberto"],
+            "attempts": 8,
+            "wait_time": 0.8,
+            "description": "Verifica se estamos no menu do livro ou na fazenda principal (com 8 tentativas)"
+          }
+        ]
       }
     }
   }

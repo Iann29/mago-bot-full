@@ -120,6 +120,47 @@ def execute_action(action: Dict[str, Any], customer_id: str) -> bool:
             else:
                 print(f"{Colors.RED}[CLIENTE] ERRO:{Colors.RESET} Parâmetros insuficientes para ação verify_state")
                 return False
+                
+        elif action_type == "check_multiple_states":
+            if len(params) >= 2:
+                expected_states = params  # Lista de estados a verificar
+                max_attempts = int(action.get("attempts", 5))  # Padrão: 5 tentativas
+                wait_time = float(action.get("wait_time", 0.5))  # Padrão: 500ms entre tentativas
+                
+                print(f"{Colors.BLUE}[CLIENTE] INFO:{Colors.RESET} Verificando múltiplos estados possíveis: {expected_states}")
+                
+                # Fazemos várias tentativas para pegar um estado válido
+                for attempt in range(max_attempts):
+                    # Obtemos o estado atual
+                    current_state_id = get_current_state_id()
+                    current_state_display = get_current_state()
+                    
+                    print(f"{Colors.BLUE}[CLIENTE] INFO:{Colors.RESET} Estado atual: {current_state_display} (ID: {current_state_id}) - Tentativa {attempt+1}/{max_attempts}")
+                    
+                    # Se o estado for 'unknown', esperamos e tentamos novamente
+                    if current_state_id == "unknown":
+                        print(f"{Colors.YELLOW}[CLIENTE] AGUARDANDO:{Colors.RESET} Estado em transição (unknown), aguardando...")
+                        wait(wait_time)
+                        continue
+                    
+                    # Verificamos se o estado atual é um dos esperados
+                    if current_state_id in expected_states:
+                        print(f"{Colors.GREEN}[CLIENTE] SUCESSO:{Colors.RESET} Estado atual {current_state_id} está entre os esperados")
+                        
+                        # Retornamos o estado como uma string extra para informar ao chamador qual estado foi encontrado
+                        # Este valor será utilizado no add_client para saber qual estado executar em seguida
+                        return (True, current_state_id)
+                    
+                    # Se não é unknown nem um dos esperados, esperamos um pouco e tentamos novamente
+                    print(f"{Colors.YELLOW}[CLIENTE] AGUARDANDO:{Colors.RESET} Estado atual {current_state_id} não é um dos esperados {expected_states}")
+                    wait(wait_time)
+                
+                # Se chegamos aqui, não encontramos um estado válido após todas as tentativas
+                print(f"{Colors.RED}[CLIENTE] ERRO:{Colors.RESET} Estado válido não encontrado após {max_attempts} tentativas")
+                return (False, None)
+            else:
+                print(f"{Colors.RED}[CLIENTE] ERRO:{Colors.RESET} Parâmetros insuficientes para ação check_multiple_states")
+                return False
         
         else:
             print(f"{Colors.RED}[CLIENTE] ERRO:{Colors.RESET} Tipo de ação desconhecido: {action_type}")
@@ -199,68 +240,83 @@ def add_client(customer_id: str) -> bool:
     Returns:
         bool: True se o cliente foi adicionado com sucesso, False caso contrário
     """
-    print(f"{Colors.BLUE}[CLIENTE] INICIANDO:{Colors.RESET} Adição de cliente '{customer_id}'")
-    
-    # Carrega a configuração
-    config = load_config()
-    if not config:
-        return False
-    
-    # Verifica se a configuração para adicionar cliente existe
-    if "addCliente" not in config:
-        print(f"{Colors.RED}[CLIENTE] ERRO:{Colors.RESET} Configuração 'addCliente' não encontrada")
-        return False
-    
-    # Obtém a configuração de adição de cliente
-    add_client_config = config["addCliente"]
-    
-    # Verifica se estamos usando o formato antigo ou novo
-    if "states" in add_client_config:
-        # Novo formato - múltiplos estados
-        # Obtém o estado atual
-        current_state_id = get_current_state_id()
-        current_state_display = get_current_state()
+    try:
+        # Carrega a configuração
+        config = load_config()
+        if not config:
+            return False
         
-        print(f"{Colors.BLUE}[CLIENTE] INFO:{Colors.RESET} Estado atual: '{current_state_id}' ({current_state_display})")
+        # Verifica se a configuração para adicionar cliente existe
+        if "addCliente" not in config:
+            print(f"{Colors.RED}[CLIENTE] ERRO:{Colors.RESET} Configuração 'addCliente' não encontrada")
+            return False
         
-        # Verifica se temos configuração para o estado atual
-        if current_state_id not in add_client_config["states"]:
-            print(f"{Colors.RED}[CLIENTE] ERRO:{Colors.RESET} Não há configuração para o estado atual '{current_state_id}' ({current_state_display})")
-            print(f"{Colors.BLUE}[CLIENTE] INFO:{Colors.RESET} Estados configurados: {list(add_client_config['states'].keys())}")
+        # Obtém a configuração de adição de cliente
+        add_client_config = config["addCliente"]
+        
+        # Verifica se a estrutura "states" existe na configuração
+        if "states" not in add_client_config:
+            print(f"{Colors.RED}[CLIENTE] ERRO:{Colors.RESET} Configuração de estados não encontrada")
             return False
             
-        # Obtém as ações para o estado atual
-        state_config = add_client_config["states"][current_state_id]
-        actions = state_config.get("actions", [])
-    else:
-        # Formato antigo - estado único
-        # Verifica o estado atual
-        required_state = add_client_config.get("state", "")
+        # Iniciar o processamento a partir do estado atual
         current_state_id = get_current_state_id()
-        current_state_display = get_current_state()
         
-        # Verifica se o estado atual é o esperado - comparando IDs diretamente
-        if required_state and required_state != current_state_id:
-            print(f"{Colors.RED}[CLIENTE] ERRO:{Colors.RESET} Estado atual '{current_state_id}' ({current_state_display}) não corresponde ao esperado '{required_state}'")
-            return False
+        # Loop principal de processamento de estados
+        # Permite que possamos navegar entre diferentes estados conforme necessário
+        while True:
+            # Atualiza o estado atual (pode ter mudado durante a execução)
+            current_state_id = get_current_state_id()
+            current_state_display = get_current_state()
+            print(f"{Colors.BLUE}[CLIENTE] INFO:{Colors.RESET} Estado atual: '{current_state_display}' (ID: {current_state_id})")
+            
+            # Verifica se o estado atual está definido na configuração
+            if current_state_id not in add_client_config['states']:
+                print(f"{Colors.RED}[CLIENTE] ERRO:{Colors.RESET} Estado {current_state_id} não está configurado para adição de cliente")
+                return False
+                
+            # Executa as ações definidas para o estado atual
+            actions = add_client_config['states'][current_state_id]['actions']
+            next_state = None
+            
+            for i, action in enumerate(actions):
+                # Executa a ação
+                result = execute_action(action, customer_id)
+                
+                # Verifica se a ação retornou uma tupla (caso de check_multiple_states)
+                if isinstance(result, tuple) and len(result) >= 2:
+                    success, next_state = result
+                    if not success:
+                        print(f"{Colors.RED}[CLIENTE] ERRO:{Colors.RESET} Falha ao executar ação: {action.get('description', '')}")
+                        return False
+                    print(f"{Colors.BLUE}[CLIENTE] INFO:{Colors.RESET} Redirecionando para o estado: {next_state}")
+                    break  # Sai do loop de ações para processar o próximo estado
+                elif not result:
+                    print(f"{Colors.RED}[CLIENTE] ERRO:{Colors.RESET} Falha ao executar ação: {action.get('description', '')}")
+                    return False
+            
+            # Se temos um próximo estado definido, vamos para ele
+            if next_state:
+                # Verificamos se é um dos estados finais (sucesso/conclusão)
+                if next_state in ['jogo_aberto', 'book_interface']:
+                    print(f"{Colors.GREEN}[CLIENTE] SUCESSO:{Colors.RESET} Cliente {customer_id} processado com sucesso!")
+                    # Passa para o próximo estado
+                    current_state_id = next_state
+                    continue
+                # Caso contrário, atualiza o estado atual e continua o processamento
+                current_state_id = next_state
+                continue
+            else:
+                # Se não temos um próximo estado e concluímos todas as ações, terminamos com sucesso
+                break
         
-        # Executa as ações configuradas
-        actions = add_client_config.get("actions", [])
-    
-    # Executa as ações
-    for action in actions:
-        success = execute_action(action, customer_id)
-        if not success:
-            print(f"{Colors.RED}[CLIENTE] ERRO:{Colors.RESET} Falha ao executar ação: {action.get('description', '')}")
-            return False
-        
-        # Pequena pausa entre ações
-        wait(0.1)
-    
-    print(f"{Colors.GREEN}[CLIENTE] SUCESSO:{Colors.RESET} Cliente '{customer_id}' adicionado com sucesso!")
-    return True
+        print(f"{Colors.GREEN}[CLIENTE] SUCESSO:{Colors.RESET} Cliente {customer_id} adicionado com sucesso!")
+        return True
+            
+    except Exception as e:
+        print(f"{Colors.RED}[CLIENTE] ERRO:{Colors.RESET} Falha ao adicionar cliente: {e}")
+        return False
 
-# Função para execução direta
 def run(customer_id: Optional[str] = None) -> bool:
     """
     Função para execução direta do módulo.
