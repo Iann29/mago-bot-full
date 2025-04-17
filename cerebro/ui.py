@@ -94,6 +94,12 @@ class HayDayTestApp:
         style.configure("TFrame", background=bg_color)
         style.configure("TLabel", background=bg_color, foreground=fg_color)
         
+        # Estilo específico para campos de entrada com texto ESCURO
+        style.configure("TEntry", 
+                       fieldbackground="white", 
+                       foreground="#11111b",  # Texto escuro para contrastar com o fundo claro
+                       insertcolor=accent_color)  # Cor do cursor de inserção de texto
+        
         # Botões estilizados
         style.configure("TButton", background=button_bg, foreground="#11111b")
         style.map("TButton", 
