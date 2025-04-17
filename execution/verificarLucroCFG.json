@@ -5,8 +5,8 @@
         "actions": [
           {
             "type": "wait",
-            "params": [7.0],
-            "description": "Espera 7s enquanto o tutorial é mostrado"
+            "params": [5.5],
+            "description": "Espera 5,5s enquanto o tutorial é mostrado"
           },
           {
             "type": "click",
