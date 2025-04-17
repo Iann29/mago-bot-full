@@ -133,6 +133,84 @@ def scan_empty_boxes(template_path: str, threshold: float = 0.85) -> List[int]:
         print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Falha ao escanear caixas vazias: {e}")
         return []
 
+def collect_sold_boxes(template_path: str, threshold: float = 0.85) -> List[int]:
+    """
+    Verifica quais caixas da loja estão vendidas e coleta o dinheiro delas.
+    
+    Args:
+        template_path: Caminho para a imagem do template da caixa vendida
+        threshold: Limiar de confiança para detecção
+        
+    Returns:
+        Lista com os índices das caixas vendidas que foram coletadas (1-10)
+    """
+    try:
+        # Carrega a configuração
+        config = load_config()
+        if not config or "kit_terra" not in config:
+            print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Configuração inválida")
+            return []
+        
+        # Obtém as ROIs individuais para cada caixa
+        box_detection = config["kit_terra"]["box_detection"]
+        individual_rois = box_detection["individual_roi"]
+        
+        # Inicializa o matcher e screenshotter
+        template_matcher = TemplateMatcher(default_threshold=threshold)
+        screenshotter = Screenshotter()
+        
+        # Garante que o caminho é absoluto
+        if not os.path.isabs(template_path):
+            template_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), template_path)
+        
+        # Captura uma screenshot
+        print(f"{Colors.BLUE}[TERRA] INFO:{Colors.RESET} Capturando screenshot para análise de caixas vendidas")
+        screenshot = screenshotter.take_screenshot(use_pil=False)
+        if screenshot is None:
+            print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Falha ao capturar screenshot")
+            return []
+        
+        # Lista para armazenar os índices das caixas vendidas coletadas
+        collected_boxes = []
+        
+        # Verifica cada caixa individualmente
+        for i, roi in enumerate(individual_rois):
+            box_index = i + 1  # Índices 1-10
+            
+            print(f"{Colors.YELLOW}[TERRA] VERIFICANDO:{Colors.RESET} Caixa {box_index} para venda (ROI: {roi})")
+            
+            # Converte a ROI para o formato esperado pelo template_matcher
+            roi_tuple = tuple(roi)
+            
+            # Busca o template da caixa vendida na ROI específica
+            result = template_matcher.find_template(screenshot, template_path, roi_tuple, threshold)
+            
+            if result and result.get('found', False):
+                confidence = result.get('confidence', 0.0)
+                print(f"{Colors.GREEN}[TERRA] CAIXA VENDIDA:{Colors.RESET} Caixa {box_index} está vendida (confiança: {confidence:.4f})")
+                
+                # Usa as posições definidas no arquivo de configuração para clicar
+                box_positions = config["kit_terra"]["box_positions"]
+                x, y = box_positions[str(box_index)]
+                
+                # Clica na caixa vendida para coletar o dinheiro
+                print(f"{Colors.YELLOW}[TERRA] COLETANDO:{Colors.RESET} Clicando na caixa {box_index} para coletar dinheiro nas coordenadas configuradas (x={x}, y={y})")
+                if click(x, y):
+                    print(f"{Colors.GREEN}[TERRA] SUCESSO:{Colors.RESET} Clique realizado na caixa {box_index} vendida")
+                    collected_boxes.append(box_index)
+                    # Cliques instantâneos sem pausa entre eles
+                else:
+                    print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Falha ao clicar na caixa {box_index} vendida")
+            else:
+                print(f"{Colors.BLUE}[TERRA] CAIXA NÃO VENDIDA:{Colors.RESET} Caixa {box_index} não está vendida ou dinheiro já foi coletado")
+        
+        print(f"{Colors.BLUE}[TERRA] RESULTADO:{Colors.RESET} {len(collected_boxes)} caixas vendidas coletadas: {collected_boxes}")
+        return collected_boxes
+        
+    except Exception as e:
+        print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Falha ao coletar caixas vendidas: {e}")
+        return []
+
 def execute_action(action: Dict[str, Any]) -> Union[bool, Tuple[bool, str]]:
     """
     Executa uma ação específica de acordo com o tipo.
@@ -257,6 +335,22 @@ def execute_action(action: Dict[str, Any]) -> Union[bool, Tuple[bool, str]]:
                     return False
             else:
                 print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Parâmetros insuficientes para ação scan_empty_boxes")
+                return False
+
+        elif action_type == "collect_sold_boxes":
+            if len(params) >= 1:
+                template_path = params[0]
+                threshold = float(params[1]) if len(params) >= 2 else 0.85
+                
+                collected_boxes = collect_sold_boxes(template_path, threshold)
+                if collected_boxes:
+                    print(f"{Colors.GREEN}[TERRA] SUCESSO:{Colors.RESET} Coletadas {len(collected_boxes)} caixas vendidas")
+                    return True
+                else:
+                    print(f"{Colors.YELLOW}[TERRA] AVISO:{Colors.RESET} Nenhuma caixa vendida encontrada para coletar")
+                    return False
+            else:
+                print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Parâmetros insuficientes para ação collect_sold_boxes")
                 return False
                 
         else:

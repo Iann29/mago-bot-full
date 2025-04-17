@@ -21,6 +21,16 @@
       "inside_shop": {
         "actions": [
           {
+            "type": "collect_sold_boxes",
+            "params": ["dataset\\others\\boxvendida.png", 0.85],
+            "description": "Verifica e coleta o dinheiro das caixas vendidas"
+          },
+          {
+            "type": "wait",
+            "params": [1.0],
+            "description": "Espera 1 segundo após coletar dinheiro"
+          },
+          {
             "type": "scan_empty_boxes",
             "params": ["dataset\\others\\emptybox.png", 0.85],
             "description": "Verifica quais caixas estão vazias"

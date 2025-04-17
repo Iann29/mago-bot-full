@@ -1,6 +1,6 @@
 {
     "capture_method": "adb", 
     "target_fps": 1,
-    "debug_mode": true,
+    "debug_mode": false,
     "debug_output_dir": "output_screenshots"
   }
