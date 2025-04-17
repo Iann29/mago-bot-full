@@ -29,7 +29,8 @@ class HayDayTestApp:
         'Dinamite': 'kit_dinamite',
         'Machado': 'kit_machado',
         'Pá': 'kit_pa',
-        'Add Cliente': 'addCliente'
+        'Add Cliente': 'addCliente',
+        'Verificar Lucro': 'verificarLucro'
     }
     
     def __init__(self, root):
@@ -41,7 +42,7 @@ class HayDayTestApp:
         """
         self.root = root
         self.root.title("HayDay Test Tool")
-        self.root.geometry("700x600")
+        self.root.geometry("700x800")
         self.root.resizable(True, True)
         
         # Configurar tema escuro com cores modernas
@@ -250,8 +251,8 @@ class HayDayTestApp:
         
         # Adicionar botões para cada kit disponível com visual melhorado
         for kit_name, module_name in self.KITS.items():
-            # Pula o 'Add Cliente' que será tratado separadamente
-            if kit_name == "Add Cliente":
+            # Pula o 'Add Cliente' e 'Verificar Lucro' que serão tratados separadamente
+            if kit_name == "Add Cliente" or kit_name == "Verificar Lucro":
                 continue
                 
             button_frame = ttk.Frame(buttons_grid, padding=5)
@@ -277,6 +278,24 @@ class HayDayTestApp:
         
         for i in range(row + 1):
             buttons_grid.rowconfigure(i, weight=1)
+            
+        # Adicionar o botão "Verificar lucro de conta" em um frame separado
+        verify_profit_frame = ttk.LabelFrame(parent_frame, text="Verificação de Lucro", padding=12)
+        verify_profit_frame.pack(fill=tk.X, padx=10, pady=10)
+        
+        # Frame interno para o botão
+        inner_frame = ttk.Frame(verify_profit_frame)
+        inner_frame.pack(fill=tk.X, expand=True, padx=5, pady=5)
+        
+        # Botão de verificar lucro com estilo destacado
+        profit_button = ttk.Button(
+            inner_frame, 
+            text="Verificar Lucro de Conta", 
+            command=lambda: self.run_kit("Verificar Lucro", self.KITS["Verificar Lucro"]),
+            style="Accent.TButton",
+            width=25
+        )
+        profit_button.pack(pady=10)
     
     def add_client(self):
         """Função para adicionar cliente a partir da interface integrada"""
