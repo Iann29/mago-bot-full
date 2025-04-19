@@ -408,6 +408,13 @@ def search_template(template_path: str, roi: List[int], max_attempts: int = 2, t
                     
                     # Tenta cada deslocamento
                     for i, (dx, dy) in enumerate(offsets):
+                        # Verifica o estado atual ANTES de tentar um novo deslocamento
+                        # Se já estamos na loja, não precisa continuar tentando
+                        current_state_before_click = get_current_state_id()
+                        if current_state_before_click == "inside_shop":
+                            print(f"{Colors.GREEN}[TERRA] SUCESSO:{Colors.RESET} Loja já está aberta, não é necessário continuar tentando deslocamentos")
+                            return True
+                            
                         new_x, new_y = position[0] + dx, position[1] + dy
                         print(f"{Colors.YELLOW}[TERRA] TENTATIVA {i+1}/{len(offsets)}:{Colors.RESET} Clicando em posição deslocada ({new_x}, {new_y})")
                         
