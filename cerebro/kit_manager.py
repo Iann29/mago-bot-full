@@ -350,15 +350,14 @@ def process_kit(kit_config: Dict[str, Any], empty_boxes: List[int]) -> bool:
                 print(f"{Colors.YELLOW}[KIT MANAGER] AVISO:{Colors.RESET} Item {item.get('name', 'desconhecido')} não tem caixas definidas")
                 continue
                 
-            # Controle para a primeira caixa (geralmente tem quantidade diferente)
-            is_first_box_of_item = True
+            # Determina qual é a VERDADEIRA primeira caixa definida na configuração
+            first_box_in_config = min(default_boxes) if default_boxes else 0
             
             # Para cada caixa permitida para este item
             for box_index in default_boxes:
                 # Verifica se esta caixa está vazia (está na lista de caixas vazias)
                 if box_index not in empty_boxes:
                     print(f"{Colors.BLUE}[KIT MANAGER] INFO:{Colors.RESET} Caixa {box_index} não está vazia, pulando")
-                    # Ainda conta como 'primeira caixa' apenas se realmente preenchermos uma caixa
                     continue
                     
                 # Converte para string para usar como chave no dicionário
@@ -370,10 +369,12 @@ def process_kit(kit_config: Dict[str, Any], empty_boxes: List[int]) -> bool:
                     
                 box_position = box_positions[box_key]
                 
+                # Determina se esta é realmente a primeira caixa do item segundo a configuração
+                is_first_box = (box_index == first_box_in_config)
+                
                 # Preenche a caixa
-                if fill_box(box_index, box_position, item, is_first_box_of_item):
+                if fill_box(box_index, box_position, item, is_first_box):
                     filled_boxes += 1
-                    is_first_box_of_item = False  # Próximas caixas não serão a primeira
                 else:
                     print(f"{Colors.RED}[KIT MANAGER] ERRO:{Colors.RESET} Falha ao preencher caixa {box_index}")
         
