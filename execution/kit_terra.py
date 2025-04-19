@@ -12,6 +12,7 @@ from typing import Dict, List, Any, Optional, Tuple, Union
 # Importações de módulos internos
 from cerebro.emulatorInteractFunction import click, wait, send_keys
 from cerebro.state import get_current_state, get_current_state_id, register_state_callback, unregister_state_callback
+from cerebro.kit_manager import process_kit
 from screenVision.screenshotMain import Screenshotter
 from screenVision.templateMatcher import TemplateMatcher
 from screenVision.maskedTemplateMatcher import MaskedTemplateMatcher
@@ -24,8 +25,9 @@ class Colors:
     BLUE = '\033[94m'       # Info
     RESET = '\033[0m'       # Reset
 
-# Caminho para o arquivo de configuração
+# Caminhos para os arquivos de configuração
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "kit_terraCFG.json")
+ITEMS_CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "kit_terra_items.json")
 
 # Controle global de estado
 state_changed_flag = False
@@ -46,6 +48,22 @@ def load_config() -> Dict:
         return config
     except Exception as e:
         print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Falha ao carregar configuração: {e}")
+        return {}
+        
+def load_items_config() -> Dict:
+    """
+    Carrega a configuração de itens do kit Terra.
+
+    Returns:
+        Dict: Configuração de itens carregada
+    """
+    try:
+        with open(ITEMS_CONFIG_PATH, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        print(f"{Colors.BLUE}[TERRA]{Colors.RESET} Configuração de itens carregada: {ITEMS_CONFIG_PATH}")
+        return config
+    except Exception as e:
+        print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Falha ao carregar configuração de itens: {e}")
         return {}
 
 def on_state_change_during_execution(previous_state: str, new_state_name: str) -> None:
@@ -71,6 +89,7 @@ def scan_empty_boxes(template_path: str, threshold: float = 0.85) -> List[int]:
     """
     Verifica quais caixas da loja estão vazias usando template matching.
     Também verifica se há caixas vendidas e coleta moedas automaticamente.
+    Otimizado para maior velocidade na coleta de moedas.
     
     Args:
         template_path: Caminho para a imagem do template da caixa vazia
@@ -109,14 +128,14 @@ def scan_empty_boxes(template_path: str, threshold: float = 0.85) -> List[int]:
             print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Falha ao capturar screenshot")
             return []
         
-        # Lista para armazenar os índices das caixas vazias
+        # Listas para armazenar os índices das caixas vazias e vendidas
         empty_boxes = []
+        sold_boxes = []
         
-        # Verifica cada caixa individualmente
+        # PASSO 1: Identifica todas as caixas vazias e vendidas em uma única passagem
+        print(f"{Colors.BLUE}[TERRA] ETAPA 1:{Colors.RESET} Identificando status de todas as caixas...")
         for i, roi in enumerate(individual_rois):
             box_index = i + 1  # Índices 1-10
-            
-            print(f"{Colors.YELLOW}[TERRA] VERIFICANDO:{Colors.RESET} Caixa {box_index} (ROI: {roi})")
             
             # Converte a ROI para o formato esperado pelo template_matcher
             roi_tuple = tuple(roi)
@@ -126,37 +145,41 @@ def scan_empty_boxes(template_path: str, threshold: float = 0.85) -> List[int]:
             
             if sold_result and sold_result.get('found', False):
                 confidence = sold_result.get('confidence', 0.0)
-                print(f"{Colors.GREEN}[TERRA] CAIXA VENDIDA:{Colors.RESET} Caixa {box_index} está vendida (confiança: {confidence:.4f})")
-                
-                # Obtém a posição para clique na caixa
-                box_position_key = str(box_index)
-                if box_position_key in box_positions:
-                    click_x, click_y = box_positions[box_position_key]
-                    print(f"{Colors.YELLOW}[TERRA] AÇÃO:{Colors.RESET} Coletando moedas da caixa {box_index}")
-                    
-                    # Clica na caixa para coletar as moedas
-                    if click(click_x, click_y):
-                        print(f"{Colors.GREEN}[TERRA] SUCESSO:{Colors.RESET} Moedas coletadas da caixa {box_index}")
-                        # Espera um curto período para a animação completar
-                        wait(0.3)
-                    else:
-                        print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Falha ao coletar moedas da caixa {box_index}")
-                else:
-                    print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Posição da caixa {box_index} não encontrada na configuração")
-                    
-                # Mesmo que a caixa esteja vendida, depois de coletar, ela estará vazia
+                print(f"{Colors.GREEN}[TERRA] CAIXA VENDIDA:{Colors.RESET} Caixa {box_index} (confiança: {confidence:.4f})")
+                sold_boxes.append(box_index)
+                # Também adicionamos às caixas vazias, pois estarão vazias após coletar
                 empty_boxes.append(box_index)
-                
             else:
                 # 2. Se não estiver vendida, verifica se está vazia
                 empty_result = template_matcher.find_template(screenshot, template_path, roi_tuple, threshold)
                 
                 if empty_result and empty_result.get('found', False):
                     confidence = empty_result.get('confidence', 0.0)
-                    print(f"{Colors.GREEN}[TERRA] CAIXA VAZIA:{Colors.RESET} Caixa {box_index} está vazia (confiança: {confidence:.4f})")
+                    print(f"{Colors.GREEN}[TERRA] CAIXA VAZIA:{Colors.RESET} Caixa {box_index} (confiança: {confidence:.4f})")
                     empty_boxes.append(box_index)
                 else:
-                    print(f"{Colors.BLUE}[TERRA] CAIXA OCUPADA:{Colors.RESET} Caixa {box_index} não está vazia nem vendida")
+                    print(f"{Colors.BLUE}[TERRA] CAIXA OCUPADA:{Colors.RESET} Caixa {box_index}")
+        
+        # PASSO 2: Coleta rápida de moedas para todas as caixas vendidas
+        if sold_boxes:
+            print(f"{Colors.BLUE}[TERRA] ETAPA 2:{Colors.RESET} Coletando moedas de {len(sold_boxes)} caixas vendidas...")
+            
+            # Inicialmente usamos uma espera mínima entre cliques para aumentar a velocidade
+            wait_time = 0.05  # 50ms entre cliques, 6x mais rápido que antes
+            
+            for box_index in sold_boxes:
+                box_position_key = str(box_index)
+                if box_position_key in box_positions:
+                    click_x, click_y = box_positions[box_position_key]
+                    # Clique rápido sem log detalhado para cada caixa
+                    if click(click_x, click_y):
+                        wait(wait_time)  # Espera mínima entre cliques
+                    else:
+                        print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Falha ao coletar moedas da caixa {box_index}")
+            
+            # Espera final após coletar todas as moedas para garantir que as animações terminem
+            wait(0.2)  # Espera final para garantir que todas as animações terminaram
+            print(f"{Colors.GREEN}[TERRA] SUCESSO:{Colors.RESET} Moedas coletadas de todas as caixas vendidas")
         
         print(f"{Colors.BLUE}[TERRA] RESULTADO:{Colors.RESET} {len(empty_boxes)} caixas vazias/coletadas encontradas: {empty_boxes}")
         return empty_boxes
@@ -283,7 +306,7 @@ def execute_action(action: Dict[str, Any]) -> Union[bool, Tuple[bool, str]]:
                 empty_boxes = scan_empty_boxes(template_path, threshold)
                 if empty_boxes:
                     print(f"{Colors.GREEN}[TERRA] SUCESSO:{Colors.RESET} Identificadas {len(empty_boxes)} caixas vazias")
-                    return True
+                    return empty_boxes  # Retorna a lista de caixas vazias ao invés de apenas True
                 else:
                     print(f"{Colors.YELLOW}[TERRA] AVISO:{Colors.RESET} Nenhuma caixa vazia encontrada")
                     return False
@@ -554,15 +577,38 @@ def run() -> bool:
                 wait(1.0)  # Espera um segundo antes de verificar novamente
         
         # Agora que estamos na loja, executamos as ações específicas do Kit Terra
-        # Por enquanto, apenas verificamos as caixas vazias
         print(f"{Colors.BLUE}[TERRA] INFO:{Colors.RESET} Executando ações específicas da loja")
         
-        # Executa as ações da inside_shop
+        # Executa as ações da inside_shop para verificar caixas vazias
         inside_shop_actions = kit_config["states"]["inside_shop"]["actions"]
+        empty_boxes = []
+        
         for i, action in enumerate(inside_shop_actions):
             # Executa a ação
             print(f"{Colors.YELLOW}[TERRA] AÇÃO {i+1}/{len(inside_shop_actions)}:{Colors.RESET} {action.get('description', '')}")
-            if not execute_action(action):
+            
+            # Se a ação é scan_empty_boxes, captura as caixas vazias para preenchimento
+            if action.get("type") == "scan_empty_boxes":
+                result = execute_action(action)
+                if isinstance(result, list):
+                    empty_boxes = result
+                    print(f"{Colors.GREEN}[TERRA] SUCESSO:{Colors.RESET} Identificadas {len(empty_boxes)} caixas vazias")
+                    
+                    # Carrega a configuração de itens do kit
+                    items_config = load_items_config()
+                    if items_config:
+                        print(f"{Colors.BLUE}[TERRA] INFO:{Colors.RESET} Iniciando preenchimento de caixas com Kit Terra")
+                        
+                        # Usa o framework para preencher as caixas com os itens do kit
+                        if process_kit(items_config, empty_boxes):
+                            print(f"{Colors.GREEN}[TERRA] SUCESSO:{Colors.RESET} Kit Terra aplicado com sucesso!")
+                        else:
+                            print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Falha ao aplicar Kit Terra")
+                            # Mesmo com falha, continuamos a execução para não interromper o fluxo
+                else:
+                    print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Falha ao identificar caixas vazias")
+                    return False
+            elif not execute_action(action):
                 print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Falha ao executar ação: {action.get('description', '')}")
                 return False
         

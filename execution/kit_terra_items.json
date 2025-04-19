@@ -1,0 +1,51 @@
+{
+  "kit_name": "Kit Terra",
+  "description": "Kit composto por estacas, marretas e escrituras, totalizando 89 itens",
+  "box_positions": {
+    "1": [177, 207],
+    "2": [177, 280],
+    "3": [246, 207],
+    "4": [246, 280],
+    "5": [315, 207],
+    "6": [315, 282],
+    "7": [384, 207],
+    "8": [384, 280],
+    "9": [452, 207],
+    "10": [452, 280]
+  },
+  "boxes_per_item": [3, 3, 3],
+  "items": [
+    {
+      "name": "Estaca",
+      "template_path": "dataset\\itens\\kitterra\\estaca.png",
+      "default_quantity": 10,
+      "first_box_quantity": 9,
+      "default_boxes": [1, 2, 3]
+    },
+    {
+      "name": "Marreta",
+      "template_path": "dataset\\itens\\kitterra\\marreta.png",
+      "default_quantity": 10,
+      "first_box_quantity": 10,
+      "default_boxes": [4, 5, 6]
+    },
+    {
+      "name": "Escritura",
+      "template_path": "dataset\\itens\\kitterra\\escritura.png",
+      "default_quantity": 10,
+      "first_box_quantity": 10,
+      "default_boxes": [7, 8, 9]
+    }
+  ],
+  "ui_coords": {
+    "item_selection_click": [140, 231],
+    "decrease_quantity_button": [378, 173],
+    "increase_quantity_button": [466, 172],
+    "max_price_button": [401, 242],
+    "sell_button": [419, 354]
+  },
+  "detection_roi": {
+    "item_selection_roi": [170, 146, 174, 208],
+    "quantity_roi": [363, 156, 122, 43]
+  }
+}
