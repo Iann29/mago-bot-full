@@ -11,7 +11,7 @@ from typing import Dict, List, Any, Optional, Tuple, Union
 
 # Importações de módulos internos
 from cerebro.emulatorInteractFunction import click, wait, send_keys
-from cerebro.state import get_current_state, get_current_state_id, register_state_callback
+from cerebro.state import get_current_state, get_current_state_id, register_state_callback, unregister_state_callback
 from screenVision.screenshotMain import Screenshotter
 from screenVision.templateMatcher import TemplateMatcher
 from screenVision.maskedTemplateMatcher import MaskedTemplateMatcher
@@ -70,6 +70,7 @@ def on_state_change_during_execution(previous_state: str, new_state_name: str) -
 def scan_empty_boxes(template_path: str, threshold: float = 0.85) -> List[int]:
     """
     Verifica quais caixas da loja estão vazias usando template matching.
+    Também verifica se há caixas vendidas e coleta moedas automaticamente.
     
     Args:
         template_path: Caminho para a imagem do template da caixa vazia
@@ -88,17 +89,21 @@ def scan_empty_boxes(template_path: str, threshold: float = 0.85) -> List[int]:
         # Obtém as ROIs individuais para cada caixa
         box_detection = config["kit_terra"]["box_detection"]
         individual_rois = box_detection["individual_roi"]
+        box_positions = config["kit_terra"]["box_positions"]
         
         # Inicializa o matcher e screenshotter
         template_matcher = TemplateMatcher(default_threshold=threshold)
         screenshotter = Screenshotter()
         
-        # Garante que o caminho é absoluto
+        # Garante que o caminho é absoluto para o template de caixa vazia
         if not os.path.isabs(template_path):
             template_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), template_path)
         
+        # Caminho para o template de caixa vendida
+        sold_box_template = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dataset", "others", "boxvendida.png")
+        
         # Captura uma screenshot
-        print(f"{Colors.BLUE}[TERRA] INFO:{Colors.RESET} Capturando screenshot para análise de caixas vazias")
+        print(f"{Colors.BLUE}[TERRA] INFO:{Colors.RESET} Capturando screenshot para análise de caixas")
         screenshot = screenshotter.take_screenshot(use_pil=False)
         if screenshot is None:
             print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Falha ao capturar screenshot")
@@ -116,21 +121,48 @@ def scan_empty_boxes(template_path: str, threshold: float = 0.85) -> List[int]:
             # Converte a ROI para o formato esperado pelo template_matcher
             roi_tuple = tuple(roi)
             
-            # Busca o template da caixa vazia na ROI específica
-            result = template_matcher.find_template(screenshot, template_path, roi_tuple, threshold)
+            # 1. Primeiro verifica se a caixa está vendida
+            sold_result = template_matcher.find_template(screenshot, sold_box_template, roi_tuple, threshold)
             
-            if result and result.get('found', False):
-                confidence = result.get('confidence', 0.0)
-                print(f"{Colors.GREEN}[TERRA] CAIXA VAZIA:{Colors.RESET} Caixa {box_index} está vazia (confiança: {confidence:.4f})")
+            if sold_result and sold_result.get('found', False):
+                confidence = sold_result.get('confidence', 0.0)
+                print(f"{Colors.GREEN}[TERRA] CAIXA VENDIDA:{Colors.RESET} Caixa {box_index} está vendida (confiança: {confidence:.4f})")
+                
+                # Obtém a posição para clique na caixa
+                box_position_key = str(box_index)
+                if box_position_key in box_positions:
+                    click_x, click_y = box_positions[box_position_key]
+                    print(f"{Colors.YELLOW}[TERRA] AÇÃO:{Colors.RESET} Coletando moedas da caixa {box_index}")
+                    
+                    # Clica na caixa para coletar as moedas
+                    if click(click_x, click_y):
+                        print(f"{Colors.GREEN}[TERRA] SUCESSO:{Colors.RESET} Moedas coletadas da caixa {box_index}")
+                        # Espera um curto período para a animação completar
+                        wait(0.3)
+                    else:
+                        print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Falha ao coletar moedas da caixa {box_index}")
+                else:
+                    print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Posição da caixa {box_index} não encontrada na configuração")
+                    
+                # Mesmo que a caixa esteja vendida, depois de coletar, ela estará vazia
                 empty_boxes.append(box_index)
+                
             else:
-                print(f"{Colors.BLUE}[TERRA] CAIXA OCUPADA:{Colors.RESET} Caixa {box_index} não está vazia")
+                # 2. Se não estiver vendida, verifica se está vazia
+                empty_result = template_matcher.find_template(screenshot, template_path, roi_tuple, threshold)
+                
+                if empty_result and empty_result.get('found', False):
+                    confidence = empty_result.get('confidence', 0.0)
+                    print(f"{Colors.GREEN}[TERRA] CAIXA VAZIA:{Colors.RESET} Caixa {box_index} está vazia (confiança: {confidence:.4f})")
+                    empty_boxes.append(box_index)
+                else:
+                    print(f"{Colors.BLUE}[TERRA] CAIXA OCUPADA:{Colors.RESET} Caixa {box_index} não está vazia nem vendida")
         
-        print(f"{Colors.BLUE}[TERRA] RESULTADO:{Colors.RESET} {len(empty_boxes)} caixas vazias encontradas: {empty_boxes}")
+        print(f"{Colors.BLUE}[TERRA] RESULTADO:{Colors.RESET} {len(empty_boxes)} caixas vazias/coletadas encontradas: {empty_boxes}")
         return empty_boxes
         
     except Exception as e:
-        print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Falha ao escanear caixas vazias: {e}")
+        print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Falha ao escanear caixas: {e}")
         return []
 
 def execute_action(action: Dict[str, Any]) -> Union[bool, Tuple[bool, str]]:
@@ -528,7 +560,7 @@ def run() -> bool:
                 return False
         
         # Remove o callback de estado
-        register_state_callback(None)
+        unregister_state_callback(on_state_change_during_execution)
         print(f"{Colors.BLUE}[TERRA] INFO:{Colors.RESET} Callback de estado removido")
         
         print(f"\n{Colors.GREEN}[TERRA] OPERAÇÃO CONCLUÍDA:{Colors.RESET} Kit Terra executado com sucesso!\n")
@@ -539,7 +571,7 @@ def run() -> bool:
         
         # Garante que o callback é removido mesmo em caso de erro
         try:
-            register_state_callback(None)
+            unregister_state_callback(on_state_change_during_execution)
             print(f"{Colors.BLUE}[TERRA] INFO:{Colors.RESET} Callback de estado removido após erro")
         except:
             pass
