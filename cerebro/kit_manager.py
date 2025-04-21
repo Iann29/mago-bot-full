@@ -283,9 +283,14 @@ def fill_box(box_index: int, box_position: Tuple[int, int], item_config: Dict[st
         numbers_folder = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dataset", "numbers")
         current_quantity = identify_number(screenshot, numbers_folder, QUANTITY_ROI)
         
-        if not adjust_quantity(current_quantity, target_quantity):
-            print(f"{Colors.RED}[KIT MANAGER] ERRO:{Colors.RESET} Falha ao ajustar quantidade para caixa {box_index}")
+        # Verifica se a quantidade está correta, especialmente para os números 9 e 10
+        # Cancela IMEDIATAMENTE a venda se a quantidade não estiver correta
+        if current_quantity != target_quantity:
+            print(f"{Colors.RED}[KIT MANAGER] ERRO:{Colors.RESET} Quantidade incorreta detectada: {current_quantity}, esperado: {target_quantity}")
+            print(f"{Colors.RED}[KIT MANAGER] AÇÃO:{Colors.RESET} Cancelando venda imediatamente da caixa {box_index}")
             return False
+        
+        # Se chegou até aqui, a quantidade já está correta, não precisa ajustar
             
         # 8. Clica no botão de preço máximo
         print(f"{Colors.YELLOW}[KIT MANAGER] AÇÃO:{Colors.RESET} Configurando preço máximo")
@@ -377,6 +382,8 @@ def process_kit(kit_config: Dict[str, Any], empty_boxes: List[int]) -> bool:
                     filled_boxes += 1
                 else:
                     print(f"{Colors.RED}[KIT MANAGER] ERRO:{Colors.RESET} Falha ao preencher caixa {box_index}")
+                    print(f"{Colors.RED}[KIT MANAGER] AÇÃO:{Colors.RESET} CANCELANDO PROCESSAMENTO COMPLETO DO KIT!")
+                    return False  # Encerra imediatamente todo o processamento do kit
         
         if filled_boxes > 0:
             print(f"{Colors.GREEN}[KIT MANAGER] SUCESSO:{Colors.RESET} Preenchidas {filled_boxes} caixas no total")
