@@ -13,8 +13,6 @@ from typing import Optional, Dict, Any, Callable
 from ADBmanager import adb_manager
 from screenVision.transmitter import transmitter
 from stateManager import GameState
-from execution.template import run_test, find_template
-from execution.testnew import execute_masked_test
 from cerebro.capture import screenshot_queue
 
 class HayDayTestApp:
@@ -388,58 +386,6 @@ class HayDayTestApp:
         # Mostra popup uma única vez se a conexão foi perdida
         message = "A conexão com o emulador foi perdida. Verifique se o emulador está em execução."
         messagebox.showwarning("Conexão Perdida", message)
-    
-    def run_template_test(self):
-        """Executa o teste de template do módulo template.py"""
-        if not self.connected_device:
-            messagebox.showerror("Erro", "Nenhum dispositivo conectado!")
-            return
-            
-        # Cria thread para não travar a UI
-        test_thread = threading.Thread(target=self._run_test_thread)
-        test_thread.daemon = True
-        test_thread.start()
-    
-    def _run_test_thread(self):
-        """Função que roda o teste em thread separada"""
-        try:
-            self.log("Iniciando teste de template...")
-            result = run_test()
-            if result:
-                self.log("✅ TESTE CONCLUÍDO: Template encontrado com sucesso!")
-                messagebox.showinfo("Resultado do Teste", "Template encontrado com sucesso!")
-            else:
-                self.log("❌ TESTE CONCLUÍDO: Template NÃO encontrado!")
-                messagebox.showinfo("Resultado do Teste", "Template NÃO encontrado!")
-        except Exception as e:
-            self.log(f"❌ ERRO no teste: {e}")
-            messagebox.showerror("Erro no Teste", f"Ocorreu um erro: {e}")
-    
-    def run_masked_test(self):
-        """Executa o teste com máscara do módulo testnew.py"""
-        if not self.connected_device:
-            messagebox.showerror("Erro", "Nenhum dispositivo conectado!")
-            return
-            
-        # Cria thread para não travar a UI
-        test_thread = threading.Thread(target=self._run_masked_test_thread)
-        test_thread.daemon = True
-        test_thread.start()
-    
-    def _run_masked_test_thread(self):
-        """Função que roda o teste com máscara em thread separada"""
-        try:
-            self.log("Iniciando teste com máscara...")
-            result = execute_masked_test()
-            if result:
-                self.log("✅ TESTE COM MÁSCARA CONCLUÍDO: Template encontrado com sucesso!")
-                messagebox.showinfo("Resultado do Teste", "Template encontrado com sucesso!")
-            else:
-                self.log("❌ TESTE COM MÁSCARA CONCLUÍDO: Template NÃO encontrado!")
-                messagebox.showinfo("Resultado do Teste", "Template NÃO encontrado!")
-        except Exception as e:
-            self.log(f"❌ ERRO no teste com máscara: {e}")
-            messagebox.showerror("Erro no Teste", f"Ocorreu um erro: {e}")
     
     def run_kit(self, kit_name, module_name):
         """Executa a venda do kit especificado"""
