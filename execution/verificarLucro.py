@@ -91,10 +91,7 @@ def execute_action(action: Dict[str, Any]) -> bool:
                 threshold = float(action.get("threshold", 0.8))
                 use_mask = action.get("useMask", False)
                 
-                if use_mask:
-                    return search_masked_template(template_path, roi, max_attempts, threshold)
-                else:
-                    return search_template(template_path, roi, max_attempts, threshold)
+                return search_template(template_path, roi, max_attempts, threshold, use_mask)
             else:
                 print(f"{Colors.RED}[LUCRO] ERRO:{Colors.RESET} Parâmetros insuficientes para ação searchTemplate")
                 return False
@@ -131,23 +128,40 @@ def execute_action(action: Dict[str, Any]) -> bool:
         print(f"{Colors.RED}[LUCRO] ERRO:{Colors.RESET} Falha ao executar ação {action.get('type', 'desconhecida')}: {e}")
         return False
 
-def search_template(template_path: str, roi: List[int], max_attempts: int = 2, threshold: float = 0.8) -> bool:
+def search_template(template_path: str, roi: List[int], max_attempts: int = 2, threshold: float = 0.8, use_mask: bool = False) -> bool:
     """
-    Busca um template na tela atual e verifica se ele foi encontrado.
+    Busca um template na tela atual e clica nele se encontrado.
+    Implementa uma estratégia avançada de cliques com deslocamentos para garantir abertura da loja.
     
     Args:
         template_path: Caminho para a imagem do template
         roi: Região de interesse [x, y, w, h] onde procurar o template
         max_attempts: Número máximo de tentativas
         threshold: Limiar de confiança para considerar que o template foi encontrado
+        use_mask: Se deve usar máscara para matching
     
     Returns:
-        bool: True se o template foi encontrado, False caso contrário
+        bool: True se o template foi encontrado e clicado, False caso contrário
     """
     # Importa aqui para evitar importação circular
     from screenVision.screenshotMain import Screenshotter
     
-    template_matcher = TemplateMatcher(default_threshold=threshold)
+    # Escolhe entre template matcher normal ou com máscara
+    if use_mask:
+        template_matcher = MaskedTemplateMatcher()
+        print(f"{Colors.BLUE}[LUCRO] INFO:{Colors.RESET} Usando template matcher com máscara")
+        
+        # Deriva o caminho da máscara
+        mask_path = template_path.replace('.png', 'mask.png')
+        if not os.path.exists(mask_path):
+            # Tenta encontrar em outro formato de nome
+            mask_path = os.path.splitext(template_path)[0] + "mask" + os.path.splitext(template_path)[1]
+            if not os.path.exists(mask_path):
+                print(f"{Colors.RED}[LUCRO] ERRO:{Colors.RESET} Máscara não encontrada para {template_path}")
+                return False
+    else:
+        template_matcher = TemplateMatcher(default_threshold=threshold)
+    
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     
     # Cria uma instância do Screenshotter para capturar screenshots diretamente
@@ -160,7 +174,14 @@ def search_template(template_path: str, roi: List[int], max_attempts: int = 2, t
     # Converte a ROI para o formato esperado pelo template_matcher
     roi_tuple = tuple(roi) if roi else None
     
-    print(f"{Colors.YELLOW}[LUCRO] BUSCANDO:{Colors.RESET} Template '{os.path.basename(template_path)}' (ROI: {roi})")
+    if use_mask:
+        # Garante que o caminho da máscara é absoluto
+        if not os.path.isabs(mask_path):
+            mask_path = os.path.join(project_root, mask_path)
+        print(f"{Colors.YELLOW}[LUCRO] BUSCANDO COM MÁSCARA:{Colors.RESET} Template '{os.path.basename(template_path)}' (ROI: {roi})")
+        print(f"{Colors.YELLOW}[LUCRO] MÁSCARA:{Colors.RESET} '{os.path.basename(mask_path)}'")
+    else:
+        print(f"{Colors.YELLOW}[LUCRO] BUSCANDO:{Colors.RESET} Template '{os.path.basename(template_path)}' (ROI: {roi})")
     
     for attempt in range(max_attempts):
         try:
@@ -173,17 +194,87 @@ def search_template(template_path: str, roi: List[int], max_attempts: int = 2, t
                 wait(0.5)  # Pequena pausa antes da próxima tentativa
                 continue
             
-            # Busca o template na screenshot capturada
-            result = template_matcher.find_template(screenshot_cv, template_path, roi_tuple, threshold)
+            # Busca o template com ou sem máscara dependendo da configuração
+            if use_mask:
+                result = template_matcher.find_template(screenshot_cv, template_path, mask_path, roi_tuple)
+            else:
+                result = template_matcher.find_template(screenshot_cv, template_path, roi_tuple, threshold)
             
             if result and result.get('found', False):
                 confidence = result.get('confidence', 0.0)
                 position = result.get('position', (0, 0))
-                print(f"{Colors.GREEN}[LUCRO] SUCESSO:{Colors.RESET} Template encontrado na posição {position} (confiança: {confidence:.4f})")
+                print(f"{Colors.GREEN}[LUCRO] SUCESSO:{Colors.RESET} Template {'com máscara ' if use_mask else ''}encontrado na posição {position} (confiança: {confidence:.4f})")
                 
-                # Realiza um clique na posição onde o template foi encontrado
-                click(position[0], position[1])
-                return True
+                # Tentativas de clique com deslocamentos variados
+                # Primeiro tenta na posição original
+                print(f"{Colors.BLUE}[LUCRO] INFO:{Colors.RESET} Tentando clique na posição original {position}")
+                success = click(position[0], position[1])
+                
+                if success:
+                    # Aguarda um pouco para ver se o estado muda para inside_shop
+                    print(f"{Colors.YELLOW}[LUCRO] AGUARDANDO:{Colors.RESET} Verificando se o estado mudou após o clique... (1.5s)")
+                    wait(1.5)  # Aguarda 1.5 segundos para o estado mudar após clique inicial
+                    
+                    # Verifica se o estado atual é loja_aberta ou algum estado subsequente (como "escolhendo_item")
+                    current_state_id = get_current_state_id()
+                    current_state_name = get_current_state()
+                    
+                    # Lista de estados válidos que indicam que a loja foi aberta com sucesso
+                    success_states = ["loja_aberta", "escolhendo_item", "inside_shop"]
+                    
+                    if current_state_id in success_states:
+                        print(f"{Colors.GREEN}[LUCRO] SUCESSO:{Colors.RESET} Loja aberta com sucesso! (Estado: {current_state_name})")
+                        return True
+                    
+                    # Se não mudou para loja_aberta, tenta deslocamentos
+                    print(f"{Colors.YELLOW}[LUCRO] AVISO:{Colors.RESET} Clique na posição original não abriu a loja. Tentando deslocamentos...")
+                    
+                    # Lista de deslocamentos a tentar (dx, dy)
+                    offsets = [
+                        (0, 10),   # 10px abaixo
+                        (0, -10),  # 10px acima
+                        (10, 0),   # 10px à direita
+                        (-10, 0),  # 10px à esquerda
+                        (10, 10),  # diagonal inferior direita
+                        (-10, 10), # diagonal inferior esquerda
+                        (10, -10), # diagonal superior direita
+                        (-10, -10) # diagonal superior esquerda
+                    ]
+                    
+                    # Tenta cada deslocamento
+                    for i, (dx, dy) in enumerate(offsets):
+                        # Verifica o estado atual ANTES de tentar um novo deslocamento
+                        # Se já estamos na loja ou em algum menu, não precisa continuar tentando
+                        current_state_before_click = get_current_state_id()
+                        current_state_name = get_current_state()
+                        
+                        # Lista de estados válidos que indicam que a loja foi aberta com sucesso
+                        success_states = ["loja_aberta", "escolhendo_item", "inside_shop"]
+                        
+                        if current_state_before_click in success_states:
+                            print(f"{Colors.GREEN}[LUCRO] SUCESSO:{Colors.RESET} Loja já está aberta (Estado: {current_state_name}), não é necessário continuar tentando deslocamentos")
+                            return True
+                            
+                        new_x, new_y = position[0] + dx, position[1] + dy
+                        print(f"{Colors.YELLOW}[LUCRO] TENTATIVA {i+1}/{len(offsets)}:{Colors.RESET} Clicando em posição deslocada ({new_x}, {new_y})")
+                        
+                        if click(new_x, new_y):
+                            # Aguarda por 1.4 segundos para ver se o estado muda
+                            print(f"{Colors.YELLOW}[LUCRO] AGUARDANDO:{Colors.RESET} Verificando por 1.4s se o estado mudou após clique com deslocamento...")
+                            wait(1.4)  # Aguarda 1.4 segundos para o estado mudar após cliques com deslocamento
+                            current_state_id = get_current_state_id()
+                            # Lista de estados válidos que indicam que a loja foi aberta com sucesso
+                            success_states = ["loja_aberta", "escolhendo_item", "inside_shop"]
+                            
+                            if current_state_id in success_states:
+                                print(f"{Colors.GREEN}[LUCRO] SUCESSO:{Colors.RESET} Loja aberta com sucesso após tentativa com deslocamento! (Estado: {get_current_state()})")
+                                return True
+                    
+                    print(f"{Colors.RED}[LUCRO] ERRO:{Colors.RESET} Todas as tentativas de clique falharam em abrir a loja")
+                    return False
+                else:
+                    print(f"{Colors.RED}[LUCRO] ERRO:{Colors.RESET} Falha ao clicar na posição {position}")
+                    return False
             
             print(f"{Colors.YELLOW}[LUCRO] TENTATIVA {attempt+1}/{max_attempts}:{Colors.RESET} Template não encontrado")
         except Exception as e:
@@ -192,81 +283,6 @@ def search_template(template_path: str, roi: List[int], max_attempts: int = 2, t
         wait(0.5)  # Pequena pausa antes da próxima tentativa
     
     print(f"{Colors.RED}[LUCRO] ERRO:{Colors.RESET} Template não encontrado após {max_attempts} tentativas")
-    return False
-
-def search_masked_template(template_path: str, roi: List[int], max_attempts: int = 2, threshold: float = 0.8) -> bool:
-    """
-    Busca um template na tela atual utilizando máscara e verifica se ele foi encontrado.
-    
-    Args:
-        template_path: Caminho para a imagem do template
-        roi: Região de interesse [x, y, w, h] onde procurar o template
-        max_attempts: Número máximo de tentativas
-        threshold: Limiar de confiança para considerar que o template foi encontrado
-    
-    Returns:
-        bool: True se o template foi encontrado, False caso contrário
-    """
-    # Importa aqui para evitar importação circular
-    from screenVision.screenshotMain import Screenshotter
-    
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    
-    # Cria uma instância do Screenshotter para capturar screenshots diretamente
-    screenshotter = Screenshotter()
-    
-    # Garante que o caminho é absoluto
-    if not os.path.isabs(template_path):
-        template_path = os.path.join(project_root, template_path)
-    
-    # Gera o caminho da máscara adicionando "mask" ao final do nome do arquivo
-    mask_path = template_path.replace('.png', 'mask.png')
-    
-    # Converte a ROI para o formato esperado
-    roi_tuple = tuple(roi) if roi else None
-    
-    print(f"{Colors.YELLOW}[LUCRO] BUSCANDO COM MÁSCARA:{Colors.RESET} Template '{os.path.basename(template_path)}' (ROI: {roi})")
-    print(f"{Colors.YELLOW}[LUCRO] MÁSCARA:{Colors.RESET} '{os.path.basename(mask_path)}'")
-    
-    # Cria uma instância do MaskedTemplateMatcher
-    masked_matcher = MaskedTemplateMatcher(default_threshold=threshold, verbose=True)
-    
-    for attempt in range(max_attempts):
-        try:
-            # Captura uma nova screenshot diretamente (formato OpenCV - BGR)
-            print(f"{Colors.YELLOW}[LUCRO] CAPTURANDO:{Colors.RESET} Nova screenshot para busca de template com máscara")
-            screenshot_cv = screenshotter.take_screenshot(use_pil=False)
-            
-            if screenshot_cv is None:
-                print(f"{Colors.RED}[LUCRO] ERRO:{Colors.RESET} Falha ao capturar screenshot")
-                wait(0.5)  # Pequena pausa antes da próxima tentativa
-                continue
-            
-            # Busca o template com máscara na screenshot capturada
-            result = masked_matcher.find_template(
-                screenshot_cv, 
-                template_path, 
-                mask_path, 
-                roi_tuple, 
-                threshold
-            )
-            
-            if result and result.get('found', False):
-                confidence = result.get('confidence', 0.0)
-                position = result.get('position', (0, 0))
-                print(f"{Colors.GREEN}[LUCRO] SUCESSO:{Colors.RESET} Template com máscara encontrado na posição {position} (confiança: {confidence:.4f})")
-                
-                # Realiza um clique na posição onde o template foi encontrado
-                click(position[0], position[1])
-                return True
-            
-            print(f"{Colors.YELLOW}[LUCRO] TENTATIVA {attempt+1}/{max_attempts}:{Colors.RESET} Template com máscara não encontrado")
-        except Exception as e:
-            print(f"{Colors.RED}[LUCRO] ERRO:{Colors.RESET} Falha ao processar screenshot com máscara: {e}")
-        
-        wait(0.5)  # Pequena pausa antes da próxima tentativa
-    
-    print(f"{Colors.RED}[LUCRO] ERRO:{Colors.RESET} Template com máscara não encontrado após {max_attempts} tentativas")
     return False
 
 # Usar para detectar quando o estado muda durante a execução
@@ -372,25 +388,23 @@ def verificar_lucro() -> bool:
                     print(f"{Colors.BLUE}[LUCRO] AÇÃO {i+1}/{len(state_actions)}:{Colors.RESET} {action.get('description', 'Sem descrição')}")
                     
                     # Executa a ação atual
-                    if not execute_action(action):
+                    result = execute_action(action)
+                    
+                    # Se for uma ação searchTemplate e for bem-sucedida, mostramos o estado atual
+                    if action.get("type") == "searchTemplate" and result:
+                        current_state = get_current_state()
+                        current_state_id = get_current_state_id()
+                        print(f"{Colors.GREEN}[LUCRO] SUCESSO:{Colors.RESET} Template encontrado e clicado! Estado atual: {current_state} (ID: {current_state_id})")
+                    
+                    # Se qualquer ação falhar, interrompemos o processo
+                    if not result:
                         print(f"{Colors.RED}[LUCRO] ERRO:{Colors.RESET} Falha ao executar ação {i+1}")
                         return False
                     
-                    # Verifica se o popup do tutorial apareceu durante a ação
-                    if pending_restart:
-                        print(f"{Colors.YELLOW}[LUCRO] REINICIANDO:{Colors.RESET} Popup do tutorial detectado, reiniciando execução...")
-                        restart_count += 1
-                        break
-                
-                # Se todas as ações foram executadas sem necessidade de reiniciar, finaliza com sucesso
-                if not pending_restart:
-                    print(f"{Colors.GREEN}[LUCRO] SUCESSO:{Colors.RESET} Verificação de lucro concluída com sucesso")
-                    return True
-                # Se o loop foi interrompido devido ao popup, continua para a próxima iteração
-                else:
-                    # Aguarda um momento para garantir que o sistema reconheça o novo estado
-                    wait(0.5)
-                    continue
+                    # Verificamos apenas se a ação searchTemplate foi bem-sucedida
+                # Se chegamos aqui, significa que todas as ações foram executadas
+                print(f"{Colors.GREEN}[LUCRO] SUCESSO:{Colors.RESET} Detecção e acesso à banca concluído com sucesso")
+                return True
             else:
                 print(f"{Colors.YELLOW}[LUCRO] ALERTA:{Colors.RESET} Não há configuração para o estado atual '{current_state}' (ID: {current_state_id})")
                 states_available = list(states_config.keys())
