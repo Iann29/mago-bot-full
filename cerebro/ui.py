@@ -438,7 +438,26 @@ class HayDayTestApp:
             else:
                 self.log(f"Iniciando venda do Kit {kit_name}...")
             
-            # Importa dinamicamente o módulo
+            # Verificar se é o Kit Terra e o modo Turbo está ativado
+            if kit_name == "Terra" and hasattr(self, 'turbo_mode') and self.turbo_mode.get():
+                try:
+                    # Tenta importar e executar diretamente o módulo turbo
+                    import execution.turbo.terraturbo as turbo_module
+                    self.log(f"Modo TURBO ativado para o Kit {kit_name}!")
+                    result = turbo_module.run()
+                    
+                    # Mensagens de resultado
+                    if result:
+                        self.log(f"✅ Kit {kit_name} (TURBO) vendido com sucesso!")
+                        messagebox.showinfo("Venda de Kit", f"Kit {kit_name} vendido com sucesso no modo TURBO!")
+                    else:
+                        self.log(f"⚠️ Kit {kit_name} (TURBO): Operação finalizada")
+                        messagebox.showinfo("Venda de Kit", f"Operação de venda do Kit {kit_name} (TURBO) finalizada.")
+                    return
+                except Exception as e:
+                    self.log(f"❌ Erro no modo TURBO: {e} - Continuando com modo normal")
+            
+            # Importa dinamicamente o módulo (fluxo normal)
             import importlib
             try:
                 # Carrega o módulo da pasta execution

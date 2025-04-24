@@ -13,12 +13,10 @@ from cerebro.emulatorInteractFunction import click, wait, get_device
 from screenVision.screenshotMain import Screenshotter
 from screenVision.templateMatcher import TemplateMatcher
 
-# Cores para logs
+# Cores para logs essenciais
 class Colors:
     GREEN = '\033[92m'
-    YELLOW = '\033[93m'
     RED = '\033[91m'
-    BLUE = '\033[94m'
     RESET = '\033[0m'
 
 # Caminhos de configuração
@@ -66,24 +64,16 @@ KIT_TERRA_CONFIG = [
 screenshotter = Screenshotter()
 template_matcher = TemplateMatcher(default_threshold=0.8)
 
-def load_config() -> Dict:
-    """Carrega configuração do kit terra (versão rápida)"""
-    try:
-        with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
-            config = json.load(f)
-        print(f"{Colors.BLUE}[TERRA-TURBO]{Colors.RESET} Configuração carregada")
-        return config
-    except Exception as e:
-        print(f"{Colors.RED}[TERRA-TURBO] ERRO:{Colors.RESET} Falha ao carregar configuração: {e}")
-        return {}
+# Função load_config() removida pois não é utilizada no modo turbo
 
-def quick_find_template(template_path: str, roi: List[int]) -> Tuple[bool, Tuple[int, int]]:
+def quick_find_template(template_path: str, roi: List[int], max_attempts: int = 3) -> Tuple[bool, Tuple[int, int]]:
     """
-    Versão ultra-rápida para encontrar um template na tela
+    Versão melhorada para encontrar um template na tela com múltiplas tentativas
     
     Args:
         template_path: Caminho para a imagem do template
         roi: Região de interesse [x, y, w, h]
+        max_attempts: Número máximo de tentativas
         
     Returns:
         Tuple[bool, Tuple[int, int]]: (encontrado, (x, y))
@@ -92,26 +82,35 @@ def quick_find_template(template_path: str, roi: List[int]) -> Tuple[bool, Tuple
     if not os.path.isabs(template_path):
         template_path = os.path.join(PROJECT_ROOT, template_path)
     
-    # Captura screenshot diretamente (formato OpenCV)
-    screenshot = screenshotter.take_screenshot(use_pil=False)
-    if screenshot is None:
-        return False, (0, 0)
-    
     # Converte ROI para o formato esperado
     roi_tuple = tuple(roi) if roi else None
     
-    # Busca o template com threshold otimizado
-    result = template_matcher.find_template(screenshot, template_path, roi_tuple, threshold=0.75)
+    # Faz múltiplas tentativas para encontrar o template
+    for attempt in range(max_attempts):
+        # Captura screenshot diretamente (formato OpenCV)
+        screenshot = screenshotter.take_screenshot(use_pil=False)
+        if screenshot is None:
+            continue
+        
+        # Busca o template com threshold otimizado (mais baixo para maior sensibilidade)
+        result = template_matcher.find_template(screenshot, template_path, roi_tuple, threshold=0.72)
+        
+        if result and result.get('found', False):
+            position = result.get('position', (0, 0))
+            confidence = result.get('confidence', 0.0)
+            print(f"Item encontrado (confiança: {confidence:.4f}) na posição {position}")
+            return True, position
+        
+        # Pequena espera entre tentativas, mas não espera fixa no final
+        if attempt < max_attempts - 1:
+            wait(0.05)  # 50ms entre tentativas
     
-    if result and result.get('found', False):
-        position = result.get('position', (0, 0))
-        return True, position
-    
+    # Após tentar o número máximo de vezes sem sucesso
     return False, (0, 0)
 
 def fill_box(box_config: Dict[str, Any], is_first_box: bool = False) -> bool:
     """
-    Preenche uma caixa específica com o item configurado
+    Preenche uma caixa específica com o item configurado - versão ultra-rápida sem logs
     
     Args:
         box_config: Configuração da caixa a ser preenchida
@@ -129,73 +128,59 @@ def fill_box(box_config: Dict[str, Any], is_first_box: bool = False) -> bool:
         # Posição da caixa
         box_pos = BOX_POSITIONS[box_number]
         
-        print(f"{Colors.BLUE}[TERRA-TURBO]{Colors.RESET} Preenchendo caixa {box_number} com {qty} {name}")
+        print(f"{Colors.GREEN}[TURBO]{Colors.RESET} Caixa {box_number}: {name} ({qty})")
         
         # 1. Clique na caixa
-        if not click(box_pos[0], box_pos[1]):
-            return False
-        
-        # Espera mínima possível
-        wait(0.02)  # 20ms
+        click(box_pos[0], box_pos[1])
+        wait(0.02)  # 20ms - espera mínima para a interface responder
         
         # 2. Clique no botão de inventário (somente na primeira caixa)
         if is_first_box:
-            if not click(INVENTORY_BUTTON_POS[0], INVENTORY_BUTTON_POS[1]):
-                return False
-            # Espera para o inventário abrir
-            wait(0.03)  # 30ms
+            click(INVENTORY_BUTTON_POS[0], INVENTORY_BUTTON_POS[1])
+            wait(0.05)  # 50ms para o menu abrir
         
-        # 3. Busca o item pelo template
-        found, position = quick_find_template(template_path, ITEM_DETECTION_ROI)
+        # 3. Busca o item pelo template - com múltiplas tentativas
+        found, position = quick_find_template(template_path, ITEM_DETECTION_ROI, max_attempts=4)
         if not found:
-            print(f"{Colors.RED}[TERRA-TURBO] ERRO:{Colors.RESET} Item {name} não encontrado")
+            print(f"{Colors.RED}[TURBO-ERRO]{Colors.RESET} Item {name} não encontrado após múltiplas tentativas")
             return False
         
-        # 4. Clica no item
-        if not click(position[0], position[1]):
-            return False
+        # 4. Clica no item encontrado
+        click(position[0], position[1])
+        wait(0.05)  # 50ms para garantir que o clique foi processado
         
         # 5. Ajusta a quantidade (apenas para a primeira caixa de estacas)
         if box_number == "1" and name == "Estaca" and qty < 10:
-            # Precisa reduzir a quantidade
-            wait(0.01)  # 10ms
             for _ in range(10 - qty):
-                if not click(MINUS_QUANTITY_POS[0], MINUS_QUANTITY_POS[1]):
-                    return False
-                wait(0.01)  # 10ms espera entre cliques
+                click(MINUS_QUANTITY_POS[0], MINUS_QUANTITY_POS[1])
+                wait(0.02)  # 20ms entre cliques de ajuste
         
-        # 6. Confirma a seleção
-        wait(0.01)  # 10ms
-        if not click(CONFIRM_POS[0], CONFIRM_POS[1]):
-            return False
+        # 6. Confirma a seleção (preço máximo)
+        wait(0.05)  # 50ms antes de confirmar
+        click(CONFIRM_POS[0], CONFIRM_POS[1])
+        wait(0.05)  # 50ms entre botões
         
-        # 7. Confirma a colocação final
-        if not click(FINAL_CONFIRM_POS[0], FINAL_CONFIRM_POS[1]):
-            return False
+        # 7. Confirma a colocação final (vender)
+        click(FINAL_CONFIRM_POS[0], FINAL_CONFIRM_POS[1])
+        wait(0.05)  # 50ms após a confirmação final
         
-        print(f"{Colors.GREEN}[TERRA-TURBO] SUCESSO:{Colors.RESET} Caixa {box_number} preenchida com {qty} {name}")
         return True
         
     except Exception as e:
-        print(f"{Colors.RED}[TERRA-TURBO] ERRO:{Colors.RESET} Falha ao preencher caixa {box_config.get('box', '?')}: {e}")
+        print(f"{Colors.RED}[TURBO-ERRO]{Colors.RESET} Caixa {box_config.get('box', '?')}: {e}")
         return False
 
 def check_connection() -> bool:
     """Verifica se há conexão com o dispositivo"""
     device = get_device()
     if not device:
-        print(f"{Colors.RED}[TERRA-TURBO] ERRO:{Colors.RESET} Nenhum dispositivo conectado")
+        print(f"{Colors.RED}[TURBO-ERRO]{Colors.RESET} Sem conexão")
         return False
     return True
 
+# Função não utilizada no fluxo principal, mantida apenas como referência
 def scan_empty_boxes() -> List[str]:
-    """
-    Versão simplificada para verificar caixas vazias.
-    No modo turbo, assumimos que todas as caixas estão vazias para maior velocidade.
-    
-    Returns:
-        List[str]: Lista de caixas vazias (1-9)
-    """
+    """Retorna as caixas 1-9 (sem verificação)"""
     return [str(i) for i in range(1, 10)]
 
 def run() -> bool:
@@ -205,9 +190,9 @@ def run() -> bool:
     Returns:
         bool: True se executado com sucesso
     """
-    print(f"\n{Colors.YELLOW}===== INICIANDO TERRA TURBO ====={Colors.RESET}")
+    print(f"{Colors.GREEN}[TURBO]{Colors.RESET} Iniciando")
     
-    # Verifica conexão
+    # Verifica conexão uma única vez no início
     if not check_connection():
         return False
     
@@ -215,18 +200,16 @@ def run() -> bool:
     # Isso elimina a necessidade de verificar o estado e escanear caixas
     
     first_box = True
-    for i, box_config in enumerate(KIT_TERRA_CONFIG):
+    for box_config in KIT_TERRA_CONFIG:
         # Preenche a caixa
-        success = fill_box(box_config, is_first_box=first_box)
-        if not success:
-            print(f"{Colors.RED}[TERRA-TURBO] ERRO:{Colors.RESET} Falha ao preencher caixa {box_config['box']}")
+        if not fill_box(box_config, is_first_box=first_box):
             return False
         
         # Depois da primeira caixa, não precisamos mais clicar no botão de inventário
         if first_box:
             first_box = False
     
-    print(f"{Colors.GREEN}[TERRA-TURBO] CONCLUÍDO:{Colors.RESET} Kit Terra preenchido com sucesso no modo TURBO!")
+    print(f"{Colors.GREEN}[TURBO]{Colors.RESET} Concluído!")
     return True
 
 def run_with_gui_check(turbo_enabled: bool) -> bool:
@@ -240,8 +223,7 @@ def run_with_gui_check(turbo_enabled: bool) -> bool:
         bool: True se executado com sucesso
     """
     if not turbo_enabled:
-        print(f"{Colors.YELLOW}[TERRA-TURBO] INFO:{Colors.RESET} Modo Turbo desativado na interface. Usando kit normal.")
-        # Importa e executa o kit normal
+        # Usa o kit normal
         import execution.kit_terra as kit_terra
         return kit_terra.run()
     
