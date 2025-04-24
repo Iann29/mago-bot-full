@@ -58,6 +58,9 @@ class HayDayTestApp:
         # Variáveis para a área de adicionar cliente
         self.client_tag_var = tk.StringVar()
         
+        # Variável para controlar o modo Turbo
+        self.turbo_mode = tk.BooleanVar(value=False)
+        
         # Configurar a interface
         self.setup_ui()
         
@@ -80,6 +83,7 @@ class HayDayTestApp:
         frame_bg = "#313244"  # Fundo para frames
         button_bg = "#89dceb"  # Cor vibrante para botões
         button_active = "#94e2d5"  # Cor quando botão está ativo
+        switch_on = "#a6e3a1"  # Verde para o switch ativado
         
         # Configura cores para a janela principal
         self.root.configure(bg=bg_color)
@@ -113,6 +117,14 @@ class HayDayTestApp:
         style.map("Accent.TButton", 
                   background=[("active", button_active), ("pressed", "#74c7ec")],
                   foreground=[("active", "#181825")])
+        
+        # Estilo para o checkbutton do modo Turbo
+        style.configure("Switch.TCheckbutton",
+                        background=bg_color,
+                        foreground=fg_color)
+        style.map("Switch.TCheckbutton",
+                 foreground=[("selected", switch_on)],
+                 background=[("active", bg_color)])
     
     def setup_ui(self):
         """Configura todos os elementos da interface"""
@@ -244,6 +256,25 @@ class HayDayTestApp:
         """Configuração da área de botões de ação"""
         actions_frame = ttk.LabelFrame(parent_frame, text="Botões de Venda de Kits", padding=12)
         actions_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Frame para o botão Turbo
+        turbo_frame = ttk.Frame(actions_frame)
+        turbo_frame.pack(fill=tk.X, padx=5, pady=(5, 10))
+        
+        # Label para o Turbo
+        turbo_label = ttk.Label(turbo_frame, text="Turbo:", font=("Segoe UI", 10, "bold"))
+        turbo_label.pack(side=tk.LEFT, padx=(5, 10))
+        
+        # Botão de alternância para o Turbo
+        self.turbo_switch = ttk.Checkbutton(
+            turbo_frame, 
+            text="ON/OFF",
+            variable=self.turbo_mode,
+            onvalue=True,
+            offvalue=False,
+            style="Switch.TCheckbutton"
+        )
+        self.turbo_switch.pack(side=tk.LEFT)
         
         # Grid melhorado para botões
         buttons_grid = ttk.Frame(actions_frame)

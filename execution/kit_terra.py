@@ -465,6 +465,69 @@ def search_template(template_path: str, roi: List[int], max_attempts: int = 2, t
     print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Template não encontrado após {max_attempts} tentativas")
     return False
 
+def check_turbo_mode() -> bool:
+    """
+    Verifica se o modo Turbo está ativado na interface.
+    
+    Returns:
+        bool: True se o modo Turbo estiver ativado
+    """
+    try:
+        # Importa o módulo UI que contém a aplicação principal
+        from cerebro.ui import HayDayTestApp
+        import tkinter as tk
+        
+        # Obtém a instância principal da aplicação
+        # Nota: isso só funciona se a aplicação já estiver em execução
+        main_app = None
+        for widget in tk._default_root.winfo_children():
+            if isinstance(widget, tk.Toplevel):
+                for child in widget.winfo_children():
+                    if hasattr(child, 'turbo_mode'):
+                        main_app = child
+                        break
+                if main_app:
+                    break
+        
+        if main_app and hasattr(main_app, 'turbo_mode'):
+            return main_app.turbo_mode.get()
+        return False
+    except Exception as e:
+        print(f"{Colors.YELLOW}[TERRA] AVISO:{Colors.RESET} Não foi possível verificar o modo Turbo: {e}")
+        return False
+
+def check_turbo_mode() -> bool:
+    """
+    Verifica se o modo Turbo está ativado na interface.
+    
+    Returns:
+        bool: True se o modo Turbo estiver ativado
+    """
+    try:
+        # Importa o módulo UI que contém a aplicação principal
+        from cerebro.ui import HayDayTestApp
+        import tkinter as tk
+        
+        # Obtém a instância principal da aplicação
+        # Nota: isso só funciona se a aplicação já estiver em execução
+        main_app = None
+        if hasattr(tk, '_default_root') and tk._default_root:
+            for widget in tk._default_root.winfo_children():
+                if isinstance(widget, tk.Toplevel):
+                    for child in widget.winfo_children():
+                        if hasattr(child, 'turbo_mode'):
+                            main_app = child
+                            break
+                    if main_app:
+                        break
+        
+        if main_app and hasattr(main_app, 'turbo_mode'):
+            return main_app.turbo_mode.get()
+        return False
+    except Exception as e:
+        print(f"{Colors.YELLOW}[TERRA] AVISO:{Colors.RESET} Não foi possível verificar o modo Turbo: {e}")
+        return False
+
 def run() -> bool:
     """
     Executa o kit terra completo, seguindo o fluxo de navegação entre estados,
@@ -474,6 +537,19 @@ def run() -> bool:
         bool: True se a operação foi bem-sucedida, False caso contrário.
     """
     print("\n======= KIT TERRA =======\n")
+    
+    # Verificamos se o modo Turbo está ativado
+    turbo_mode = check_turbo_mode()
+    if turbo_mode:
+        print(f"{Colors.YELLOW}[TERRA] INFO:{Colors.RESET} Modo TURBO ativado! Usando implementação rápida.")
+        try:
+            from execution.turbo.terraturbo import run as run_turbo
+            # Executa a versão Turbo
+            result = run_turbo()
+            return result
+        except Exception as e:
+            print(f"{Colors.RED}[TERRA] ERRO:{Colors.RESET} Falha ao executar modo Turbo: {e}")
+            print(f"{Colors.YELLOW}[TERRA] INFO:{Colors.RESET} Continuando com implementação normal...")
     
     global state_changed_flag, last_detected_state_id, pending_restart
     state_changed_flag = False
