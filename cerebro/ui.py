@@ -40,7 +40,7 @@ class HayDayTestApp:
         """
         self.root = root
         self.root.title("HayDay Test Tool")
-        self.root.geometry("700x800")
+        self.root.geometry("700x860")
         self.root.resizable(True, True)
         
         # Configurar tema escuro com cores modernas
@@ -438,24 +438,45 @@ class HayDayTestApp:
             else:
                 self.log(f"Iniciando venda do Kit {kit_name}...")
             
-            # Verificar se é o Kit Terra e o modo Turbo está ativado
-            if kit_name == "Terra" and hasattr(self, 'turbo_mode') and self.turbo_mode.get():
-                try:
-                    # Tenta importar e executar diretamente o módulo turbo
-                    import execution.turbo.terraturbo as turbo_module
-                    self.log(f"Modo TURBO ativado para o Kit {kit_name}!")
-                    result = turbo_module.run()
-                    
-                    # Mensagens de resultado
-                    if result:
-                        self.log(f"✅ Kit {kit_name} (TURBO) vendido com sucesso!")
-                        messagebox.showinfo("Venda de Kit", f"Kit {kit_name} vendido com sucesso no modo TURBO!")
-                    else:
-                        self.log(f"⚠️ Kit {kit_name} (TURBO): Operação finalizada")
-                        messagebox.showinfo("Venda de Kit", f"Operação de venda do Kit {kit_name} (TURBO) finalizada.")
-                    return
-                except Exception as e:
-                    self.log(f"❌ Erro no modo TURBO: {e} - Continuando com modo normal")
+            # Verificar se o modo Turbo está ativado para os kits compatíveis
+            if hasattr(self, 'turbo_mode') and self.turbo_mode.get():
+                # Kit Terra no modo Turbo
+                if kit_name == "Terra":
+                    try:
+                        # Tenta importar e executar diretamente o módulo turbo
+                        import execution.turbo.terraturbo as turbo_module
+                        self.log(f"Modo TURBO ativado para o Kit {kit_name}!")
+                        result = turbo_module.run()
+                        
+                        # Mensagens de resultado
+                        if result:
+                            self.log(f"✅ Kit {kit_name} (TURBO) vendido com sucesso!")
+                            messagebox.showinfo("Venda de Kit", f"Kit {kit_name} vendido com sucesso no modo TURBO!")
+                        else:
+                            self.log(f"⚠️ Kit {kit_name} (TURBO): Operação finalizada")
+                            messagebox.showinfo("Venda de Kit", f"Operação de venda do Kit {kit_name} (TURBO) finalizada.")
+                        return
+                    except Exception as e:
+                        self.log(f"❌ Erro no modo TURBO: {e} - Continuando com modo normal")
+                
+                # Kit Celeiro no modo Turbo
+                elif kit_name == "Celeiro":
+                    try:
+                        # Tenta importar e executar diretamente o módulo turbo
+                        import execution.turbo.celeiroturbo as turbo_module
+                        self.log(f"Modo TURBO ativado para o Kit {kit_name}!")
+                        result = turbo_module.run()
+                        
+                        # Mensagens de resultado
+                        if result:
+                            self.log(f"✅ Kit {kit_name} (TURBO) vendido com sucesso!")
+                            messagebox.showinfo("Venda de Kit", f"Kit {kit_name} vendido com sucesso no modo TURBO!")
+                        else:
+                            self.log(f"⚠️ Kit {kit_name} (TURBO): Operação finalizada")
+                            messagebox.showinfo("Venda de Kit", f"Operação de venda do Kit {kit_name} (TURBO) finalizada.")
+                        return
+                    except Exception as e:
+                        self.log(f"❌ Erro no modo TURBO: {e} - Continuando com modo normal")
             
             # Importa dinamicamente o módulo (fluxo normal)
             import importlib
