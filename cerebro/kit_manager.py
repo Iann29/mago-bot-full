@@ -284,11 +284,17 @@ def fill_box(box_index: int, box_position: Tuple[int, int], item_config: Dict[st
         current_quantity = identify_number(screenshot, numbers_folder, QUANTITY_ROI)
         
         # Verifica se a quantidade está correta, especialmente para os números 9 e 10
-        # Cancela IMEDIATAMENTE a venda se a quantidade não estiver correta
+        # Tenta ajustar a quantidade se não estiver correta
         if current_quantity != target_quantity:
-            print(f"{Colors.RED}[KIT MANAGER] ERRO:{Colors.RESET} Quantidade incorreta detectada: {current_quantity}, esperado: {target_quantity}")
-            print(f"{Colors.RED}[KIT MANAGER] AÇÃO:{Colors.RESET} Cancelando venda imediatamente da caixa {box_index}")
-            return False
+            print(f"{Colors.YELLOW}[KIT MANAGER] AJUSTE:{Colors.RESET} Quantidade incorreta detectada: {current_quantity}, esperado: {target_quantity}")
+            print(f"{Colors.YELLOW}[KIT MANAGER] AÇÃO:{Colors.RESET} Tentando ajustar a quantidade para a caixa {box_index}")
+            
+            # Tenta ajustar a quantidade
+            if not adjust_quantity(current_quantity, target_quantity):
+                print(f"{Colors.RED}[KIT MANAGER] ERRO:{Colors.RESET} Falha ao ajustar quantidade para a caixa {box_index}")
+                return False
+            else:
+                print(f"{Colors.GREEN}[KIT MANAGER] SUCESSO:{Colors.RESET} Quantidade ajustada com sucesso para {target_quantity}")
         
         # Se chegou até aqui, a quantidade já está correta, não precisa ajustar
             
